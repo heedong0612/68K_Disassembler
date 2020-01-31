@@ -1,0 +1,2497 @@
+00001000 Starting Address
+Assembler used: EASy68K Editor/Assembler v5.16.01
+Created On: 11/30/2019 11:50:27 PM
+
+00000000                             1  *--------------------------------------------------------------------------
+00000000                             2  * Title      : Disassembler Skeleton 
+00000000                             3  * Written by : Ryan, Donghee, Anwar
+00000000                             4  * Date       : 
+00000000                             5  * 
+00000000                             6  * Description: This code contains a method for you to use
+00000000                             7  * with your Disassembler project IO, and a short demo of 
+00000000                             8  * how to call this method in the body of the "START" code.
+00000000                             9  * 
+00000000                            10  * Hints and Tips:
+00000000                            11  *   -Follow the code commenting convention here for file & method headers
+00000000                            12  *   -Don't rename this file name (Main.X68)
+00000000                            13  *   -Don't reorg the start address ($1000)
+00000000                            14  *   -Don't rename or edit the IO method I've provided you with here
+00000000                            15  *   -Don't rename the config.cfg file or change the file format: 
+00000000                            16  *    <Long_StartAddress>\CR\LF
+00000000                            17  *    <Long_EndAddress>\CR\LF<EOF>
+00000000                            18  *---------------------------------------------------------------------------
+00001000                            19      ORG    $1000    *Don't change this; see hints and tips above
+00001000                            20  *---------------------------------------------------------------------------
+00001000                            21  START:
+00001000                            22      ***********************************************************
+00001000                            23      * Code demo for printing strings to console & file is here
+00001000                            24      * Pay close attention to:
+00001000                            25      *   (1) the detailed comments, 
+00001000                            26      *   (2) how to build a (Callee-Saved) method
+00001000                            27      *   (3) how to call that method using JSR (return with RTS)
+00001000                            28      ***********************************************************
+00001000                            29      * LEA MSG1, A1        ; buffer of chars to write
+00001000                            30      * JSR TrapTask13
+00001000                            31      
+00001000                            32      * LEA MSG2, A1        ; buffer of chars to write    
+00001000                            33      * JSR TrapTask13
+00001000                            34  
+00001000                            35      * LEA ascii_val, A1
+00001000                            36      * JSR AsciiToHex     ;  example of how to convert ascii to hex
+00001000                            37  
+00001000                            38      **************************************************
+00001000                            39      *Your disassembler code goes here
+00001000                            40      **************************************************
+00001000                            41      
+00001000                            42      ;Open config.cfg (trap subtasks 50-59) (this is an IO responsibility if 3 team members)
+00001000                            43      ;load start and end address as longs
+00001000                            44      
+00001000  4FF9 00008000             45              LEA         stackStart,A7       * stack setup
+00001006                            46      
+00001006  103C 0032                 47              MOVE.B      #50,D0          * close all files (recommended)
+0000100A  4E4F                      48              TRAP        #15
+0000100C                            49              
+0000100C  43F9 00001C2A             50          LEA         inFilename,A1       * open the file with the starting and ending addresses
+00001012  103C 0033                 51              MOVE.B      #51,D0
+00001016  4E4F                      52              TRAP        #15
+00001018                            53              
+00001018  4EB9 0000104E             54          JSR         addrFromFile
+0000101E  2047                      55          MOVEA.L     D7,A0           * load the starting address
+00001020  4EB9 0000104E             56          JSR         addrFromFile
+00001026  2247                      57          MOVEA.L     D7,A1           * load the ending address
+00001028                            58     
+00001028                            59      ;loop from start to end, printing out the instruction or DATA if not recognized 
+00001028                            60      ;   use my method below (printStringToFileAndConsole) to print out the individual instruction (or DATA)
+00001028                            61  
+00001028                            62  LOOP:
+00001028  4EB9 00001AF6             63      JSR         printMemAddr    * print the current memory address
+0000102E                            64  
+0000102E  4EB9 0000106E             65      JSR         determineOp * determine the op code in D0 here
+00001034                            66      
+00001034  2F09                      67      MOVE.L      A1,-(A7)
+00001036  43F9 00001C0E             68      LEA         NEWLINE,A1  * print a newline
+0000103C  4EB9 00001B40             69      JSR         TrapTask13
+00001042  225F                      70      MOVE.L      (A7)+,A1
+00001044                            71  
+00001044  5448                      72      ADDQ.W      #2,A0       * point the address at the next byte to read
+00001046  B3C8                      73      CMPA.L      A0,A1        * compare the starting address to the ending address
+00001048  6EDE                      74      BGT         LOOP        * continue to loop if the starting address is before the ending address
+0000104A                            75  
+0000104A  FFFF FFFF                 76      SIMHALT
+0000104E                            77  
+0000104E                            78  *********************************************************************************
+0000104E                            79  * Method Name:  addrFromFile
+0000104E                            80  * Description:       reads a line from the config file and stores it in D7; LINE MUST BE IN THE CONFIG FILE FORMAT
+0000104E                            81  *
+0000104E                            82  * Preconditions:        D1.L - file ID
+0000104E                            83  * Postconditions:   D7 - the address in the file
+0000104E                            84  *********************************************************************************
+0000104E                            85  addrFromFileToSave REG D0-D2/A1
+0000104E                            86  addrFromFile:
+0000104E  48E7 E040                 87      MOVEM.L     addrFromFileToSave,-(A7)        * store registers on the stack
+00001052                            88  
+00001052  43F9 00001C49             89      LEA         addrBuff,A1     * load the buffer to read into
+00001058  343C 000A                 90          MOVE.W      #10,D2          * read 10 bytes into the buffer
+0000105C  103C 0035                 91          MOVE.B      #53,D0          * read from the file descriptor in D1
+00001060  4E4F                      92          TRAP        #15
+00001062                            93          
+00001062  4EB9 00001BC6             94          JSR         AsciiToHex      * convert the hex value to ascii
+00001068                            95  
+00001068  4CDF 0207                 96      MOVEM.L     (A7)+,addrFromFileToSave    * restore registers on the stack
+0000106C  4E75                      97      RTS
+0000106E                            98  
+0000106E                            99  *********************************************************************************
+0000106E                           100  * Method Name:  determineOp
+0000106E                           101  * Description:      determines the op code for the given 
+0000106E                           102  *
+0000106E                           103  * Preconditions:        A0 - the address of the value to analyze
+0000106E                           104  * Postconditions: 
+0000106E                           105  *********************************************************************************
+0000106E                           106  determineOp:
+0000106E  48E7 FFFE                107      MOVEM.L     A0-A6/D0-D7,-(A7)   * copy registers to stack
+00001072                           108  
+00001072  3010                     109      MOVE.W      (A0),D0     * copy the value at the address
+00001074  3200                     110      MOVE.W      D0,D1       ; store to D1 
+00001076  C27C F000                111      AND.W       #$F000,D1   ; and overwrite on D1
+0000107A                           112      
+0000107A  B27C 0000                113      CMP.W   #$0000,D1   ; compare the first bit  (0)
+0000107E  6700 006C                114      BEQ     group0
+00001082                           115  
+00001082  B27C 1000                116      CMP.W   #$1000,D1   ; compare the first bit  (1)
+00001086  6700 00A2                117      BEQ     group1  ; Byte (MOVE only)
+0000108A                           118  
+0000108A  B27C 2000                119      CMP.W   #$2000,D1   ; compare the first bit  (1)
+0000108E  6700 00AC                120      BEQ     group2  ; Long (MOVE or MOVEA)
+00001092                           121  
+00001092  B27C 3000                122      CMP.W   #$3000,D1   ; compare the first bit  (1)
+00001096  6700 00C4                123      BEQ     group3  ; Word (MOVE or MOVEA)
+0000109A                           124  
+0000109A  B27C 4000                125      CMP.W   #$4000,D1   ; compare the first bit  (4)    
+0000109E  6700 00DC                126      BEQ     group4
+000010A2                           127  
+000010A2  B27C 5000                128      CMP.W   #$5000,D1   ; compare the first bit  (5)
+000010A6  6700 0130                129      BEQ     group5
+000010AA                           130  
+000010AA  B27C 6000                131      CMP.W   #$6000,D1   ; compare the first bit  (6)
+000010AE  6700 0156                132      BEQ     group6
+000010B2                           133      
+000010B2  B27C 8000                134      CMP.W   #$8000,D1   ; compare the first bit  (8)
+000010B6  6700 0180                135      BEQ     group8
+000010BA                           136  
+000010BA  B27C 9000                137      CMP.W   #$9000,D1   ; compare the first bit  (9)
+000010BE  6700 0198                138      BEQ     group9
+000010C2                           139  
+000010C2  B27C B000                140      CMP.W   #$B000,D1   ; compare the first bit  (B)
+000010C6  6700 01D6                141      BEQ     groupB
+000010CA                           142  
+000010CA  B27C C000                143      CMP.W   #$C000,D1   ; compare the first bit  (C)
+000010CE  6700 01FA                144      BEQ     groupC
+000010D2                           145  
+000010D2  B27C D000                146      CMP.W   #$D000,D1   ; compare the first bit  (D)
+000010D6  6700 0204                147      BEQ     groupD
+000010DA                           148  
+000010DA  B27C E000                149      CMP.W   #$E000,D1   ; compare the first bit  (E)
+000010DE  6700 025A                150      BEQ     groupE
+000010E2                           151      
+000010E2  6000 02E2                152      BRA     groupDATA   *DATA
+000010E6                           153      
+000010E6                           154  doneOp:
+000010E6  4CDF 7FFF                155      MOVEM.L     (A7)+,A0-A6/D0-D7   * restore registers from stack
+000010EA  4E75                     156      RTS
+000010EC                           157  
+000010EC                           158  *********************************************************************************
+000010EC                           159  * Method Name:  group0
+000010EC                           160  * Description:      handles op codes starting with 0x0
+000010EC                           161  *
+000010EC                           162  * Preconditions:        A0 - the address of the value to analyze
+000010EC                           163  * Postconditions: 
+000010EC                           164  *********************************************************************************
+000010EC                           165  group0:
+000010EC                           166      
+000010EC                           167      * BCLR
+000010EC  3010                     168      MOVE.W  (A0),D0     * store op code value
+000010EE  C07C FFC0                169      AND.W   #$FFC0,D0   * store bitmask result in D0
+000010F2                           170      
+000010F2  B07C 0880                171      CMP.W   #$0880,D0   * compare D0 value to known BCLR bits
+000010F6  6700 05F6                172      BEQ bclrCmd     * handle a BCLR command
+000010FA                           173  
+000010FA                           174      * CMPI
+000010FA  3010                     175      MOVE.W  (A0),D0     * store op code value
+000010FC  C07C FF00                176      AND.W   #$FF00,D0   * store bitmask result in D0
+00001100  B07C 0C00                177      CMP.W   #$0C00,D0   * compare D0 value to known CMPI bits   
+00001104  6700 02D0                178      BEQ cmpiCmd     * handle a CMPI command
+00001108                           179      
+00001108                           180    *ORI.B
+00001108  3010                     181      MOVE.W  (A0),D0     * redundant? 
+0000110A  C07C FFC0                182      AND.W   #$FFC0,D0   * store bitmast result in D0
+0000110E  B07C 0000                183      CMP.W   #$0000,D0   * compare D0 value to known ORI bits
+00001112  6700 070C                184      BEQ     oriBCmd      * handle a ORI command
+00001116                           185      
+00001116                           186    *ORI.W
+00001116  B07C 0040                187      CMP.W   #$0040,D0   * compare D0 value to known ORI bits
+0000111A  6700 0728                188      BEQ     oriWCmd      * handle a ORI command
+0000111E                           189  
+0000111E                           190    *ORI.L
+0000111E  B07C 0080                191      CMP.W   #$0080,D0   * compare D0 value to known ORI bits
+00001122  6700 0744                192      BEQ     oriLCmd      * handle a ORI command
+00001126                           193  
+00001126                           194  
+00001126                           195      
+00001126  6000 029E                196      BRA     groupDATA   * no match found so go to group DATA       
+0000112A                           197  
+0000112A                           198  *********************************************************************************
+0000112A                           199  * Method Name:  group1
+0000112A                           200  * Description:      handles op codes starting with 0x1
+0000112A                           201  *
+0000112A                           202  * Preconditions:        A0 - the address of the value to analyze
+0000112A                           203  * Postconditions: 
+0000112A                           204  *********************************************************************************
+0000112A                           205  group1:
+0000112A                           206      * MOVE.B
+0000112A  3010                     207      MOVE.W  (A0),D0     * store op code value
+0000112C  C07C F000                208      AND.W   #$F000,D0   * store bitmask result in D0
+00001130  B07C 1000                209      CMP.W   #$1000,D0   * compare D0 value to known MOVE.B bits
+00001134  6700 04C8                210      BEQ moveBCmd    * handle a MOVE.B command
+00001138                           211      
+00001138  6000 028C                212      BRA groupDATA   * no match found so go to group DATA
+0000113C                           213  
+0000113C                           214  *********************************************************************************
+0000113C                           215  * Method Name:  group2
+0000113C                           216  * Description:      handles op codes starting with 0x2
+0000113C                           217  *
+0000113C                           218  * Preconditions:        A0 - the address of the value to analyze
+0000113C                           219  * Postconditions: 
+0000113C                           220  *********************************************************************************
+0000113C                           221  group2:
+0000113C                           222      * MOVEA.W
+0000113C  3010                     223      MOVE.W  (A0),D0     * store op code value
+0000113E  C07C F1C0                224      AND.W   #$F1C0,D0   * store bitmask result in D0
+00001142  B07C 21C0                225      CMP.W   #$21C0,D0   * compare D0 value to known MOVEA.W bits
+00001146  6700 0486                226      BEQ moveaWCmd   * handle a MOVEA.W command
+0000114A                           227  
+0000114A                           228      * MOVE.W
+0000114A  3010                     229      MOVE.W  (A0),D0     * store op code value
+0000114C  C07C F000                230      AND.W   #$F000,D0   * store bitmask result in D0
+00001150  B07C 2000                231      CMP.W   #$2000,D0   * compare D0 value to known MOVE.B bits
+00001154  6700 04C0                232      BEQ moveWCmd    * handle a MOVE.B command
+00001158                           233      
+00001158  6000 026C                234      BRA groupDATA   * no match found so go to group DATA
+0000115C                           235  
+0000115C                           236  *********************************************************************************
+0000115C                           237  * Method Name:  group3
+0000115C                           238  * Description:      handles op codes starting with 0x3
+0000115C                           239  *
+0000115C                           240  * Preconditions:        A0 - the address of the value to analyze
+0000115C                           241  * Postconditions: 
+0000115C                           242  *********************************************************************************
+0000115C                           243  group3:
+0000115C                           244      
+0000115C                           245      * MOVEA.L
+0000115C  3010                     246      MOVE.W  (A0),D0     * store op code value
+0000115E  C07C F1C0                247      AND.W   #$F1C0,D0   * store bitmask result in D0
+00001162  B07C 31C0                248      CMP.W   #$31C0,D0   * compare D0 value to known MOVEA.L bits
+00001166  6700 047E                249      BEQ moveaLCmd   * handle a MOVEA.L command
+0000116A                           250  
+0000116A                           251      * MOVE.L
+0000116A  3010                     252      MOVE.W  (A0),D0     * store op code value
+0000116C  C07C F000                253      AND.W   #$F000,D0   * store bitmask result in D0
+00001170  B07C 3000                254      CMP.W   #$3000,D0   * compare D0 value to known MOVE.L bits
+00001174  6700 04B8                255      BEQ moveLCmd    * handle a MOVE.L command
+00001178                           256      
+00001178  6000 024C                257      BRA groupDATA   * no match found so go to group DATA
+0000117C                           258  
+0000117C                           259  *********************************************************************************
+0000117C                           260  * Method Name:  group4
+0000117C                           261  * Description:      handles op codes starting with 0x4 
+0000117C                           262  *
+0000117C                           263  * Preconditions:        A0 - the address of the value to analyze
+0000117C                           264  * Postconditions: 
+0000117C                           265  *********************************************************************************
+0000117C                           266  group4:
+0000117C                           267  
+0000117C                           268      * RTS
+0000117C  0C50 4E75                269      CMP.W   #$4E75,(A0) * compare to the RTS bits
+00001180  6700 04C4                270      BEQ     rtsCmd      * handle an RTS command
+00001184                           271  
+00001184                           272      * JSR
+00001184  3010                     273      MOVE.W  (A0),D0     * store op code value
+00001186  C07C FFC0                274      AND.W   #$FFC0,D0   * store bitmask result in D0
+0000118A  B07C 4E80                275      CMP.W   #$4E80,D0   * compare D0 value to known JSR bits
+0000118E  6700 04CE                276      BEQ jsrCmd      * handle a JSR command
+00001192                           277  
+00001192                           278      * MOVEM
+00001192  3010                     279      MOVE.W  (A0),D0     * store op code value
+00001194  C07C FC80                280      AND.W   #$FC80,D0   * store bitmask result in D0
+00001198  B07C 4880                281      CMP.W   #$4880,D0   * compare D0 value to known MOVEM bits
+0000119C  6700 0418                282      BEQ movemRegCmd * handle a MOVEM command (reg->mem)
+000011A0                           283  
+000011A0  B07C 4C80                284      CMP.W   #$4C80,D0   * compare D0 value to known JSR bits
+000011A4  6700 03F8                285      BEQ movemMemCmd * handle a MOVEM command (mem->reg)
+000011A8                           286  
+000011A8                           287      * LEA
+000011A8  3010                     288      MOVE.W  (A0),D0     * redundant?
+000011AA  C07C F1C0                289      AND.W   #$F1C0,D0   * store bitmask result in D0
+000011AE  B07C 41C0                290      CMP.W   #$41C0,D0   * compare D0 value to known LEA bits
+000011B2  6700 05A6                291      BEQ     leaCmd      * handle a LEA command
+000011B6                           292      
+000011B6                           293      * NEG.B
+000011B6  3010                     294      MOVE.W  (A0),D0     * redundant?
+000011B8  C07C FFC0                295      AND.W   #$FFC0,D0   * store bitmask result in D0
+000011BC  B07C 4400                296      CMP.W   #$4400,D0   * compare D0 value to known NEG bits
+000011C0  6700 05C2                297      BEQ     negBCmd     * handle a NEG command
+000011C4                           298      
+000011C4                           299      * NEG.W
+000011C4  B07C 4410                300      CMP.W   #$4410,D0   * compare D0 value to known NEG bits
+000011C8  6700 05DE                301      BEQ     negWCmd     * handle a NEG command
+000011CC                           302  
+000011CC                           303      * NEG.L
+000011CC  B07C 4480                304      CMP.W   #$4480,D0   * compare D0 value to known NEG bits
+000011D0  6700 05FA                305      BEQ     negLCmd     * handle a NEG command
+000011D4                           306  
+000011D4                           307  
+000011D4                           308      * DATA
+000011D4  6000 01F0                309      BRA     groupDATA
+000011D8                           310      * no match found so go to group DATA
+000011D8                           311  
+000011D8                           312  *********************************************************************************
+000011D8                           313  * Method Name:  group5
+000011D8                           314  * Description:      handles op codes starting with 0x5
+000011D8                           315  *
+000011D8                           316  * Preconditions:        A0 - the address of the value to analyze
+000011D8                           317  * Postconditions: 
+000011D8                           318  *********************************************************************************
+000011D8                           319  group5:
+000011D8  43F9 00001C53            320      LEA  strGroup5, A1
+000011DE  103C 000E                321      MOVE.B  #14, D0     
+000011E2  4E4F                     322      TRAP    #15
+000011E4                           323      
+000011E4  3010                     324      MOVE.W  (A0),D0     * store op code value
+000011E6  C07C F1C0                325      AND.W   #$F1C0,D0       * store bitmask result in D0
+000011EA                           326      
+000011EA                           327      * SUBQ
+000011EA  B07C 5100                328      CMP.W   #$5100,D0   * compare D0 value to known SUBQ.B bits
+000011EE  6700 02BE                329      BEQ subqBCmd    * handle a SUBQ.B command 
+000011F2                           330      
+000011F2  B07C 5140                331      CMP.W   #$5140,D0   * compare D0 value to known SUBQ.W bits
+000011F6  6700 02CE                332      BEQ subqWCmd    * handle a SUBQ.W command 
+000011FA                           333      
+000011FA  B07C 5180                334      CMP.W   #$5180,D0   * compare D0 value to known SUBQ.L bits
+000011FE  6700 02DE                335      BEQ subqLCmd    * handle a SUBQ.L command 
+00001202                           336          
+00001202  6000 FEE2                337      BRA     doneOp
+00001206                           338      
+00001206                           339  *********************************************************************************
+00001206                           340  * Method Name:  group6
+00001206                           341  * Description:      handles op codes starting with 0x6
+00001206                           342  *
+00001206                           343  * Preconditions:        A0 - the address of the value to analyze
+00001206                           344  * Postconditions: 
+00001206                           345  *********************************************************************************
+00001206                           346  group6:
+00001206                           347      
+00001206                           348      * Bcc
+00001206  3010                     349      MOVE.W  (A0),D0     * store op code value
+00001208  C07C FF00                350      AND.W   #$FF00,D0   * store bitmask result in D0
+0000120C                           351      * BRA
+0000120C  B07C 6000                352      CMP.W   #$6000,D0   * compare D0 value to known BRA bits
+00001210  6700 0464                353      BEQ braCmd      * handle a BRA command
+00001214                           354      * BCS
+00001214  B07C 6500                355      CMP.W   #$6500,D0   * compare D0 value to known BCS bits
+00001218  6700 0474                356      BEQ bcsCmd      * handle a BCS command
+0000121C                           357      * BGE
+0000121C  B07C 6C00                358      CMP.W   #$6C00,D0   * compare D0 value to known BGE bits
+00001220  6700 0484                359      BEQ bgeCmd      * handle a BGE command
+00001224                           360      * BLT
+00001224  B07C 6D00                361      CMP.W   #$6D00,D0   * compare D0 value to known BLT bits
+00001228  6700 0494                362      BEQ bltCmd      * handle a BLT command
+0000122C                           363      * BVC
+0000122C  B07C 6900                364      CMP.W   #$6900,D0   * compare D0 value to known BVC bits
+00001230  6700 04A4                365      BEQ bvcCmd      * handle a BVC command
+00001234                           366  
+00001234                           367      * DATA
+00001234  6000 0190                368      BRA groupDATA   * no match found so go to group DATA
+00001238                           369  
+00001238                           370  *********************************************************************************
+00001238                           371  * Method Name:  group8
+00001238                           372  * Description:      handles op codes starting with 0x8
+00001238                           373  *
+00001238                           374  * Preconditions:        A0 - the address of the value to analyze
+00001238                           375  * Postconditions: 
+00001238                           376  *********************************************************************************
+00001238                           377  group8:
+00001238                           378      
+00001238                           379      *DIVS
+00001238  3010                     380      MOVE.W  (A0),D0     * store op code value
+0000123A  C07C F1C0                381      AND.W   #$F1C0,D0   * store bitmask result in D0
+0000123E                           382      
+0000123E  B07C 81C0                383      CMP.W   #$81C0,D0   * compare D0 value to known DIVS bits
+00001242  6700 04EC                384      BEQ     divsCmd     * handle a DIVS command
+00001246                           385      
+00001246                           386      *OR -- make sure that this one comes last!!
+00001246  3010                     387      MOVE.W  (A0),D0     * store op code value
+00001248  C07C F000                388      AND.W   #$F000,D0   * store bitmask result in D0
+0000124C                           389      
+0000124C  B07C 8000                390      CMP.W   #$8000,D0   * compare D0 value to known OR bits
+00001250  6700 059E                391      BEQ     orCmd       * handle a OR command
+00001254                           392      
+00001254  6000 FE90                393      BRA doneOp
+00001258                           394      
+00001258                           395  *********************************************************************************
+00001258                           396  * Method Name:  group9
+00001258                           397  * Description:      handles op codes starting with 0x9
+00001258                           398  *
+00001258                           399  * Preconditions:        A0 - the address of the value to analyze
+00001258                           400  * Postconditions: 
+00001258                           401  *********************************************************************************
+00001258                           402  group9:
+00001258  43F9 00001C6B            403      LEA  strGroup9, A1
+0000125E  103C 000E                404      MOVE.B  #14, D0
+00001262  4E4F                     405      TRAP    #15
+00001264                           406      
+00001264  3010                     407      MOVE.W  (A0),D0     * store op code value
+00001266  C07C F1C0                408      AND.W   #$F1C0,D0   * store bitmask result in D0
+0000126A                           409      
+0000126A                           410      * SUB.B (000, 100)
+0000126A  B07C 9000                411      CMP.W   #$9000,D0   * compare D0 value to known SUB.B bits
+0000126E  6700 0286                412      BEQ     subBdnCmd   * handle a SUB.B command (dn - ea)
+00001272                           413      
+00001272  B07C 9100                414      CMP.W   #$9100,D0   * compare D0 value to known SUB.B bits
+00001276  6700 02C6                415      BEQ subBeaCmd   * handle a SUB.B command (ea - dn)
+0000127A                           416      
+0000127A                           417      * SUB.W
+0000127A  B07C 9040                418      CMP.W   #$9040,D0   * compare D0 value to known SUB.W bits
+0000127E  6700 028E                419      BEQ subWdnCmd   * handle a SUB.B command (dn - ea)
+00001282                           420      
+00001282  B07C 9140                421      CMP.W   #$9140,D0   * compare D0 value to known SUB.W bits
+00001286  6700 02CE                422      BEQ subWeaCmd   * handle a SUB.B command (ea - dn)
+0000128A                           423      
+0000128A                           424      * SUB.L
+0000128A  B07C 9080                425      CMP.W   #$9080,D0   * compare D0 value to known SUB.L bits
+0000128E  6700 0296                426      BEQ subLdnCmd   * handle a SUB.B command (dn - ea)
+00001292                           427      
+00001292  B07C 9180                428      CMP.W   #$9180,D0   * compare D0 value to known SUB.L bits
+00001296  6700 02D6                429      BEQ subLeaCmd   * handle a SUB.B command (ea - dn)
+0000129A                           430      
+0000129A  6000 FE4A                431      BRA doneOp
+0000129E                           432      
+0000129E                           433  *********************************************************************************
+0000129E                           434  * Method Name:  groupB
+0000129E                           435  * Description:      handles op codes starting with 0xB
+0000129E                           436  *
+0000129E                           437  * Preconditions:        A0 - the address of the value to analyze
+0000129E                           438  * Postconditions: 
+0000129E                           439  *********************************************************************************
+0000129E                           440  groupB:
+0000129E                           441  
+0000129E  43F9 00001C77            442      LEA  strGroupB, A1
+000012A4  103C 000E                443      MOVE.B  #14, D0
+000012A8  4E4F                     444      TRAP    #15
+000012AA                           445  
+000012AA                           446      * CMP
+000012AA  3010                     447    MOVE.W    (A0),D0     * store op code value
+000012AC  C07C F000                448      AND.W   #$F000,D0   * store bitmask result in D0
+000012B0  B07C B000                449      CMP.W   #$B000,D0   * compare D0 value to known CMP bits    
+000012B4  6700 02D0                450      BEQ cmpCmd      * handle a CMP command
+000012B8                           451      
+000012B8                           452    * EOR
+000012B8  3010                     453      MOVE.W  (A0),D0     * store op code value
+000012BA  C07C F100                454      AND.W   #$F100,D0   * store bitmask result in D0
+000012BE  B07C B100                455      CMP.W   #$B100,D0   * compare D0 value to known EOR bits
+000012C2  6700 05C8                456      BEQ     eorCmd      * handle a EOR command
+000012C6                           457  
+000012C6  6000 FE1E                458      BRA doneOp
+000012CA                           459      
+000012CA                           460  *********************************************************************************
+000012CA                           461  * Method Name:  groupC
+000012CA                           462  * Description:      handles op codes starting with 0xC
+000012CA                           463  *
+000012CA                           464  * Preconditions:        A0 - the address of the value to analyze
+000012CA                           465  * Postconditions: 
+000012CA                           466  *********************************************************************************
+000012CA                           467  groupC:
+000012CA                           468  
+000012CA                           469      * MULS
+000012CA  3010                     470      MOVE.W  (A0),D0         * store op code value
+000012CC  C07C F1C0                471      AND.W   #$F1C0, D0      * store bitmask result in D0
+000012D0                           472  
+000012D0  B07C C1C0                473      CMP.W   #$C1C0, D0      * compare D0 value to known MULS bits
+000012D4  6700 0430                474      BEQ     mulsCmd         * handle a muls command
+000012D8                           475      
+000012D8  6000 FE0C                476      BRA doneOp
+000012DC                           477      
+000012DC                           478  
+000012DC                           479  *******************************************************************************
+000012DC                           480  * Method Name:  groupD* Description:        handles op codes starting with 0xD
+000012DC                           481  *
+000012DC                           482  * Preconditions:        A0 - the address of the value to analyze
+000012DC                           483  * Postconditions: 
+000012DC                           484  *********************************************************************************
+000012DC                           485  groupD:
+000012DC  43F9 00001C8F            486      LEA  strGroupD, A1
+000012E2  103C 000E                487      MOVE.B  #14, D0
+000012E6  4E4F                     488      TRAP    #15
+000012E8                           489  
+000012E8                           490      *ADDA.W
+000012E8  3010                     491      MOVE.W  (A0),D0     * store op code value
+000012EA  C07C F0C0                492      AND.W   #$F0C0,D0   * store bitmask result in D0
+000012EE  B07C D0C0                493      CMP.W   #$D0C0,D0   * compare D0 value to known ADDA.W bits (opmode 011)    
+000012F2  6700 00FA                494      BEQ addaWCmd    * handle a ADDA.W command
+000012F6                           495  
+000012F6                           496      *ADDA.L
+000012F6  3010                     497      MOVE.W  (A0),D0     * store op code value
+000012F8  C07C F1C0                498      AND.W   #$F1C0,D0   * store bitmask result in D0
+000012FC  B07C D1C0                499      CMP.W   #$D1C0,D0   * compare D0 value to known ADDA.W bits (opmode 011)    
+00001300  6700 0104                500      BEQ addaLCmd    * handle a ADDA.L command
+00001304                           501  
+00001304                           502      *ADD.B
+00001304  3010                     503      MOVE.W  (A0),D0     * store op code value
+00001306  B07C D000                504      CMP.W   #$D000,D0   * compare D0 value to known ADD.B bits (opmode 000)
+0000130A  6700 015A                505      BEQ addBeaCmd   * handle a ADD.B command (ea+dn)
+0000130E                           506  
+0000130E  B07C D100                507      CMP.W   #$D100,D0   * compare D0 value to known ADD.B bits (opmode 100)
+00001312  6700 010A                508      BEQ addBdnCmd   * handle a ADD.B command (dn+ea)
+00001316                           509  
+00001316                           510      *ADD.W
+00001316  B07C D040                511      CMP.W   #$D040,D0   * compare D0 value to known ADD.W bits (opmode 001)
+0000131A  6700 0162                512      BEQ addWeaCmd   * handle a ADD.W command (ea+dn)
+0000131E                           513  
+0000131E  B07C D140                514      CMP.W   #$D140,D0   * compare D0 value to known ADD.W bits (opmode 101)
+00001322  6700 0112                515      BEQ addWdnCmd   * handle a ADD.W command (dn+ea)
+00001326                           516  
+00001326                           517      *ADD.L
+00001326  B07C D080                518      CMP.W   #$D080,D0   * compare D0 value to known ADD.L bits (opmode 010)
+0000132A  6700 016A                519      BEQ addLeaCmd   * handle a ADD.L command (ea+dn)
+0000132E                           520  
+0000132E  B07C D180                521      CMP.W   #$D180,D0   * compare D0 value to known ADD.L bits (opmode 110)
+00001332  6700 011A                522      BEQ addLdnCmd   * handle a ADD.L command (dn+ea)
+00001336                           523  
+00001336  6000 FDAE                524      BRA doneOp
+0000133A                           525      
+0000133A                           526  *********************************************************************************
+0000133A                           527  * Method Name:  groupE
+0000133A                           528  * Description:      handles op codes starting with 0xE
+0000133A                           529  *
+0000133A                           530  * Preconditions:        A0 - the address of the value to analyze
+0000133A                           531  * Postconditions: 
+0000133A                           532  *********************************************************************************
+0000133A                           533  groupE:
+0000133A                           534  
+0000133A                           535     * LSL.B
+0000133A  3010                     536      MOVE.W  (A0),D0         * store op code value
+0000133C  C07C F1D8                537      AND.W   #$F1D8, D0      * store bitmask result in D0
+00001340                           538  
+00001340  B07C E108                539      CMP.W   #$E108, D0      * compare D0 value to known LSL bits
+00001344  6700 0570                540      BEQ     lslBCmd          * handle a LSL command
+00001348                           541      
+00001348                           542      * LSL.W
+00001348  B07C E148                543      CMP.W   #$E148, D0      * compare D0 value to known LSL bits
+0000134C  6700 0592                544      BEQ     lslWCmd          * handle a LSL command
+00001350                           545      
+00001350                           546      * LSL.L
+00001350  B07C E188                547      CMP.W   #$E188, D0      * compare D0 value to known LSL bits
+00001354  6700 05B4                548      BEQ     lslLCmd          * handle a LSL command
+00001358                           549      
+00001358                           550      *LSR.B
+00001358  B07C E008                551      CMP.W   #$E008, D0      * compare D0 value to known LSR bits
+0000135C  6700 05D6                552      BEQ     lsrBCmd          * handle a LSR command
+00001360                           553      
+00001360                           554      *LSR.W
+00001360  B07C E048                555      CMP.W   #$E048, D0      * compare D0 value to known LSR bits
+00001364  6700 05F8                556      BEQ     lsrWCmd          * handle a LSR command
+00001368                           557      
+00001368                           558      *LSR.L
+00001368  B07C E088                559      CMP.W   #$E088, D0      * compare D0 value to known LSR bits
+0000136C  6700 061A                560      BEQ     lsrLCmd          * handle a LSR command
+00001370                           561  
+00001370                           562      *ASL
+00001370  3010                     563      MOVE.W  (A0),D0         * store op code value
+00001372  C07C FFC0                564      AND.W   #$FFC0, D0      * store bitmask result in D0
+00001376                           565  
+00001376  B07C E1C0                566      CMP.W   #$E1C0, D0      * compare D0 value to known ASL bits
+0000137A  6700 0636                567      BEQ     aslCmd          * handle a ASL command
+0000137E                           568      
+0000137E                           569      *ASR
+0000137E  3010                     570      MOVE.W  (A0),D0         * store op code value
+00001380  C07C FFC0                571      AND.W   #$FFC0, D0      * store bitmask result in D0
+00001384                           572  
+00001384  B07C E0C0                573      CMP.W   #$E0C0, D0      * compare D0 value to known ASR bits
+00001388  6700 064C                574      BEQ     asrCmd          * handle a ASR command
+0000138C                           575      
+0000138C                           576      * ROL.B
+0000138C  3010                     577      MOVE.W  (A0),D0         * store op code value
+0000138E  C07C F1D8                578      AND.W   #$F1D8, D0      * store bitmask result in D0
+00001392                           579  
+00001392  B07C E118                580      CMP.W   #$E118, D0      * compare D0 value to known ROL bits
+00001396  6700 0662                581      BEQ     rolBCmd          * handle a ROL.B command
+0000139A                           582      
+0000139A                           583      * ROL.W
+0000139A  B07C E158                584      CMP.W   #$E158, D0      * compare D0 value to known ROL bits
+0000139E  6700 0684                585      BEQ     rolWCmd          * handle a ROL.W command
+000013A2                           586      
+000013A2                           587      * ROL.L
+000013A2  B07C E198                588      CMP.W   #$E198, D0      * compare D0 value to known ROL bits
+000013A6  6700 06A6                589      BEQ     rolLCmd          * handle a ROL.L command
+000013AA                           590  
+000013AA                           591      * ROR.B
+000013AA  B07C E018                592      CMP.W   #$E018, D0      * compare D0 value to known ROR bits
+000013AE  6700 06C8                593      BEQ     rorBCmd          * handle a ROR command
+000013B2                           594      
+000013B2                           595      * ROR.W
+000013B2  B07C E058                596      CMP.W   #$E058, D0      * compare D0 value to known ROR bits
+000013B6  6700 06EA                597      BEQ     rorWCmd          * handle a ROR command
+000013BA                           598      
+000013BA                           599      * ROR.L
+000013BA  B07C E098                600      CMP.W   #$E098, D0      * compare D0 value to known ROR bits
+000013BE  6700 070C                601      BEQ     rorLCmd          * handle a ROR command
+000013C2                           602  
+000013C2  6000 FD22                603      BRA doneOp
+000013C6                           604      
+000013C6                           605  *********************************************************************************
+000013C6                           606  * Method Name:  groupData
+000013C6                           607  * Description:      the default op code if no matches are found
+000013C6                           608  *
+000013C6                           609  * Preconditions:        A0 - the address of the value to analyze
+000013C6                           610  * Postconditions: 
+000013C6                           611  *********************************************************************************
+000013C6                           612  groupDATA:
+000013C6  43F9 00001E22            613      LEA     dataMsg,A1
+000013CC  103C 000E                614      MOVE.B  #14, D0
+000013D0  4E4F                     615      TRAP    #15
+000013D2                           616      
+000013D2  6000 FD12                617      BRA     doneOp
+000013D6                           618      
+000013D6                           619  *********************************************************************************
+000013D6                           620  * Method Name:  cmpiCmd
+000013D6                           621  * Description:      handles a CMPI command
+000013D6                           622  *
+000013D6                           623  * Preconditions:        A0 - contains the address of the command
+000013D6                           624  * Postconditions:   
+000013D6                           625  *********************************************************************************
+000013D6                           626  cmpiCmd:
+000013D6  48E7 0040                627      MOVEM.L     A1,-(A7)    * store register to stack
+000013DA                           628  
+000013DA  43F9 00001D73            629      LEA     cmpiMsg,A1
+000013E0  4EB9 00001B40            630      JSR     TrapTask13  
+000013E6                           631  
+000013E6                           632  
+000013E6  4CDF 0200                633      MOVEM.L     (A7)+,A1    * restore register from stack
+000013EA  6000 FCFA                634      BRA     doneOp
+000013EE                           635  
+000013EE                           636  *********************************************************************************
+000013EE                           637  * Method Name:  addaWCmd
+000013EE                           638  * Description:      handles a ADDA.W command    
+000013EE                           639  * Preconditions:        A0 - contains the address of the command
+000013EE                           640  * Postconditions:   
+000013EE                           641  *********************************************************************************
+000013EE                           642  addaWCmd:
+000013EE  48E7 0040                643      MOVEM.L     A1,-(A7)    * store register to stack
+000013F2                           644  
+000013F2  43F9 00001D2B            645      LEA     addaWMsg,A1
+000013F8  4EB9 00001B40            646      JSR     TrapTask13  
+000013FE                           647  
+000013FE                           648  
+000013FE  4CDF 0200                649      MOVEM.L     (A7)+,A1    * restore register from stack
+00001402  6000 FCE2                650      BRA     doneOp
+00001406                           651  
+00001406                           652  *********************************************************************************
+00001406                           653  * Method Name:  addaLCmd
+00001406                           654  * Description:      handles a ADDA.L command    
+00001406                           655  * Preconditions:        A0 - contains the address of the command
+00001406                           656  * Postconditions:   
+00001406                           657  *********************************************************************************
+00001406                           658  addaLCmd:
+00001406  48E7 0040                659      MOVEM.L     A1,-(A7)    * store register to stack
+0000140A                           660  
+0000140A  43F9 00001D32            661      LEA     addaLMsg,A1
+00001410  4EB9 00001B40            662      JSR     TrapTask13  
+00001416                           663  
+00001416                           664  
+00001416  4CDF 0200                665      MOVEM.L     (A7)+,A1    * restore register from stack
+0000141A  6000 FCCA                666      BRA     doneOp
+0000141E                           667      
+0000141E                           668  *********************************************************************************
+0000141E                           669  * Method Name:  addBdnCmd
+0000141E                           670  * Description:      handles a ADD.B command (dn+ea)
+0000141E                           671  *
+0000141E                           672  * Preconditions:        A0 - contains the address of the command
+0000141E                           673  * Postconditions:   
+0000141E                           674  *********************************************************************************
+0000141E                           675  addBdnCmd:
+0000141E  48E7 0040                676      MOVEM.L     A1,-(A7)    * store register to stack
+00001422                           677  
+00001422  43F9 00001D39            678      LEA     addBdnMsg,A1
+00001428  4EB9 00001B40            679      JSR     TrapTask13  
+0000142E                           680  
+0000142E                           681  
+0000142E  4CDF 0200                682      MOVEM.L     (A7)+,A1    * restore register from stack
+00001432  6000 FCB2                683      BRA     doneOp
+00001436                           684      
+00001436                           685  *********************************************************************************
+00001436                           686  * Method Name:  addWdnCmd
+00001436                           687  * Description:      handles a ADD.W command (dn+ea)
+00001436                           688  *
+00001436                           689  * Preconditions:        A0 - contains the address of the command
+00001436                           690  * Postconditions:   
+00001436                           691  *********************************************************************************
+00001436                           692  addWdnCmd:
+00001436  48E7 0040                693      MOVEM.L     A1,-(A7)    * store register to stack
+0000143A                           694  
+0000143A  43F9 00001D42            695      LEA     addWdnMsg,A1
+00001440  4EB9 00001B40            696      JSR     TrapTask13  
+00001446                           697  
+00001446                           698  
+00001446  4CDF 0200                699      MOVEM.L     (A7)+,A1    * restore register from stack
+0000144A  6000 FC9A                700      BRA     doneOp
+0000144E                           701  
+0000144E                           702  *********************************************************************************
+0000144E                           703  * Method Name:  addLdnCmd
+0000144E                           704  * Description:      handles a ADD.L command (dn+ea)
+0000144E                           705  *
+0000144E                           706  * Preconditions:        A0 - contains the address of the command
+0000144E                           707  * Postconditions:   
+0000144E                           708  *********************************************************************************
+0000144E                           709  addLdnCmd:
+0000144E  48E7 0040                710      MOVEM.L     A1,-(A7)    * store register to stack
+00001452                           711  
+00001452  43F9 00001D4B            712      LEA     addLdnMsg,A1
+00001458  4EB9 00001B40            713      JSR     TrapTask13  
+0000145E                           714  
+0000145E                           715  
+0000145E  4CDF 0200                716      MOVEM.L     (A7)+,A1    * restore register from stack
+00001462  6000 FC82                717      BRA     doneOp
+00001466                           718  
+00001466                           719  *********************************************************************************
+00001466                           720  * Method Name:  addBeaCmd
+00001466                           721  * Description:      handles a ADD.B command (ea+dn)
+00001466                           722  *
+00001466                           723  * Preconditions:        A0 - contains the address of the command
+00001466                           724  * Postconditions:   
+00001466                           725  *********************************************************************************
+00001466                           726  addBeaCmd:
+00001466  48E7 0040                727      MOVEM.L     A1,-(A7)    * store register to stack
+0000146A                           728  
+0000146A  43F9 00001D54            729      LEA     addBeaMsg,A1
+00001470  4EB9 00001B40            730      JSR     TrapTask13  
+00001476                           731  
+00001476                           732  
+00001476  4CDF 0200                733      MOVEM.L     (A7)+,A1    * restore register from stack
+0000147A  6000 FC6A                734      BRA     doneOp
+0000147E                           735      
+0000147E                           736  *********************************************************************************
+0000147E                           737  * Method Name:  addWeaCmd
+0000147E                           738  * Description:      handles a ADD.W command (ea+dn)
+0000147E                           739  *
+0000147E                           740  * Preconditions:        A0 - contains the address of the command
+0000147E                           741  * Postconditions:   
+0000147E                           742  *********************************************************************************
+0000147E                           743  addWeaCmd:
+0000147E  48E7 0040                744      MOVEM.L     A1,-(A7)    * store register to stack
+00001482                           745  
+00001482  43F9 00001D5D            746      LEA     addWeaMsg,A1
+00001488  4EB9 00001B40            747      JSR     TrapTask13  
+0000148E                           748  
+0000148E                           749  
+0000148E  4CDF 0200                750      MOVEM.L     (A7)+,A1    * restore register from stack
+00001492  6000 FC52                751      BRA     doneOp
+00001496                           752  
+00001496                           753  *********************************************************************************
+00001496                           754  * Method Name:  addLeaCmd
+00001496                           755  * Description:      handles a ADD.L command (ea+dn)
+00001496                           756  *
+00001496                           757  * Preconditions:        A0 - contains the address of the command
+00001496                           758  * Postconditions:   
+00001496                           759  *********************************************************************************
+00001496                           760  addLeaCmd:
+00001496  48E7 0040                761      MOVEM.L     A1,-(A7)    * store register to stack
+0000149A                           762  
+0000149A  43F9 00001D66            763      LEA     addLeaMsg,A1
+000014A0  4EB9 00001B40            764      JSR     TrapTask13  
+000014A6                           765  
+000014A6                           766  
+000014A6  4CDF 0200                767      MOVEM.L     (A7)+,A1    * restore register from stack
+000014AA  6000 FC3A                768      BRA     doneOp
+000014AE                           769  
+000014AE                           770  *********************************************************************************
+000014AE                           771  * Method Name:  subqBCmd
+000014AE                           772  * Description:      handles a SUBQ.B command
+000014AE                           773  *
+000014AE                           774  * Preconditions:        A0 - contains the address of the command
+000014AE                           775  * Postconditions:   
+000014AE                           776  *********************************************************************************
+000014AE                           777  subqBCmd:
+000014AE  48E7 0040                778      MOVEM.L     A1,-(A7)    * store register to stack
+000014B2                           779  
+000014B2  43F9 00001CE0            780      LEA     subqBMsg,A1
+000014B8  4EB9 00001B40            781      JSR     TrapTask13  
+000014BE                           782  
+000014BE                           783  
+000014BE  4CDF 0200                784      MOVEM.L     (A7)+,A1    * restore register from stack
+000014C2  6000 FC22                785      BRA     doneOp
+000014C6                           786  
+000014C6                           787  *********************************************************************************
+000014C6                           788  * Method Name:  subqWCmd
+000014C6                           789  * Description:      handles a SUBQ.W command
+000014C6                           790  *
+000014C6                           791  * Preconditions:        A0 - contains the address of the command
+000014C6                           792  * Postconditions:   
+000014C6                           793  *********************************************************************************
+000014C6                           794  subqWCmd:
+000014C6  48E7 0040                795      MOVEM.L     A1,-(A7)    * store register to stack
+000014CA                           796  
+000014CA  43F9 00001CE7            797      LEA     subqWMsg,A1
+000014D0  4EB9 00001B40            798      JSR     TrapTask13  
+000014D6                           799  
+000014D6                           800  
+000014D6  4CDF 0200                801      MOVEM.L     (A7)+,A1    * restore register from stack
+000014DA  6000 FC0A                802      BRA     doneOp
+000014DE                           803  
+000014DE                           804  *********************************************************************************
+000014DE                           805  * Method Name:  subqLCmd
+000014DE                           806  * Description:      handles a SUBQ.L command
+000014DE                           807  *
+000014DE                           808  * Preconditions:        A0 - contains the address of the command
+000014DE                           809  * Postconditions:   
+000014DE                           810  *********************************************************************************
+000014DE                           811  subqLCmd:
+000014DE  48E7 0040                812      MOVEM.L     A1,-(A7)    * store register to stack
+000014E2                           813  
+000014E2  43F9 00001CEE            814      LEA     subqLMsg,A1
+000014E8  4EB9 00001B40            815      JSR     TrapTask13  
+000014EE                           816  
+000014EE                           817  
+000014EE  4CDF 0200                818      MOVEM.L     (A7)+,A1    * restore register from stack
+000014F2  6000 FBF2                819      BRA     doneOp
+000014F6                           820      
+000014F6                           821  *********************************************************************************
+000014F6                           822  * Method Name:  subBdnCmd
+000014F6                           823  * Description:      handles a SUB.B command (dn-ea)
+000014F6                           824  *
+000014F6                           825  * Preconditions:        A0 - contains the address of the command
+000014F6                           826  * Postconditions:   
+000014F6                           827  *********************************************************************************
+000014F6                           828  subBdnCmd:
+000014F6  48E7 0040                829      MOVEM.L     A1,-(A7)    * store register to stack
+000014FA                           830  
+000014FA  43F9 00001CF5            831      LEA     subBdnMsg,A1
+00001500  4EB9 00001B40            832      JSR     TrapTask13  
+00001506                           833  
+00001506                           834  
+00001506  4CDF 0200                835      MOVEM.L     (A7)+,A1    * restore register from stack
+0000150A  6000 FBDA                836      BRA     doneOp
+0000150E                           837      
+0000150E                           838  *********************************************************************************
+0000150E                           839  * Method Name:  subWdnCmd
+0000150E                           840  * Description:      handles a SUB.W command (dn-ea)
+0000150E                           841  *
+0000150E                           842  * Preconditions:        A0 - contains the address of the command
+0000150E                           843  * Postconditions:   
+0000150E                           844  *********************************************************************************
+0000150E                           845  subWdnCmd:
+0000150E  48E7 0040                846      MOVEM.L     A1,-(A7)    * store register to stack
+00001512                           847  
+00001512  43F9 00001CFE            848      LEA     subWdnMsg,A1
+00001518  4EB9 00001B40            849      JSR     TrapTask13  
+0000151E                           850  
+0000151E                           851  
+0000151E  4CDF 0200                852      MOVEM.L     (A7)+,A1    * restore register from stack
+00001522  6000 FBC2                853      BRA     doneOp
+00001526                           854      
+00001526                           855  *********************************************************************************
+00001526                           856  * Method Name:  subLdnCmd
+00001526                           857  * Description:      handles a SUB.L command (dn-ea)
+00001526                           858  *
+00001526                           859  * Preconditions:        A0 - contains the address of the command
+00001526                           860  * Postconditions:   
+00001526                           861  *********************************************************************************
+00001526                           862  subLdnCmd:
+00001526  48E7 0040                863      MOVEM.L     A1,-(A7)    * store register to stack
+0000152A                           864  
+0000152A  43F9 00001D07            865      LEA     subLdnMsg,A1
+00001530  4EB9 00001B40            866      JSR     TrapTask13  
+00001536                           867  
+00001536                           868  
+00001536  4CDF 0200                869      MOVEM.L     (A7)+,A1    * restore register from stack
+0000153A  6000 FBAA                870      BRA     doneOp
+0000153E                           871      
+0000153E                           872  *********************************************************************************
+0000153E                           873  * Method Name:  subBeaCmd
+0000153E                           874  * Description:      handles a SUB.B command (ea-dn)
+0000153E                           875  *
+0000153E                           876  * Preconditions:        A0 - contains the address of the command
+0000153E                           877  * Postconditions:   
+0000153E                           878  *********************************************************************************
+0000153E                           879  subBeaCmd:
+0000153E  48E7 0040                880      MOVEM.L     A1,-(A7)    * store register to stack
+00001542                           881  
+00001542  43F9 00001D10            882      LEA     subBeaMsg,A1
+00001548  4EB9 00001B40            883      JSR     TrapTask13  
+0000154E                           884  
+0000154E                           885  
+0000154E  4CDF 0200                886      MOVEM.L     (A7)+,A1    * restore register from stack
+00001552  6000 FB92                887      BRA     doneOp
+00001556                           888  
+00001556                           889  *********************************************************************************
+00001556                           890  * Method Name:  subWeaCmd
+00001556                           891  * Description:      handles a SUB.W command (ea-dn)
+00001556                           892  *
+00001556                           893  * Preconditions:        A0 - contains the address of the command
+00001556                           894  * Postconditions:   
+00001556                           895  *********************************************************************************
+00001556                           896  subWeaCmd:
+00001556  48E7 0040                897      MOVEM.L     A1,-(A7)    * store register to stack
+0000155A                           898  
+0000155A  43F9 00001D19            899      LEA     subWeaMsg,A1
+00001560  4EB9 00001B40            900      JSR     TrapTask13  
+00001566                           901  
+00001566                           902  
+00001566  4CDF 0200                903      MOVEM.L     (A7)+,A1    * restore register from stack
+0000156A  6000 FB7A                904      BRA     doneOp
+0000156E                           905      
+0000156E                           906  *********************************************************************************
+0000156E                           907  * Method Name:  subLeaCmd
+0000156E                           908  * Description:      handles a SUB.B command (ea-dn)
+0000156E                           909  *
+0000156E                           910  * Preconditions:        A0 - contains the address of the command
+0000156E                           911  * Postconditions:   
+0000156E                           912  *********************************************************************************
+0000156E                           913  subLeaCmd:
+0000156E  48E7 0040                914      MOVEM.L     A1,-(A7)    * store register to stack
+00001572                           915  
+00001572  43F9 00001D22            916      LEA     subLeaMsg,A1
+00001578  4EB9 00001B40            917      JSR     TrapTask13  
+0000157E                           918  
+0000157E                           919  
+0000157E  4CDF 0200                920      MOVEM.L     (A7)+,A1    * restore register from stack
+00001582  6000 FB62                921      BRA     doneOp
+00001586                           922  
+00001586                           923  *********************************************************************************
+00001586                           924  * Method Name:  
+00001586                           925  * Description:      handles a CMP command
+00001586                           926  *
+00001586                           927  * Preconditions:        A0 - contains the address of the command
+00001586                           928  * Postconditions:   
+00001586                           929  *********************************************************************************
+00001586                           930  cmpCmd:
+00001586  48E7 0040                931      MOVEM.L     A1,-(A7)    * store register to stack
+0000158A                           932  
+0000158A  43F9 00001D6F            933      LEA     cmpMsg,A1
+00001590  4EB9 00001B40            934      JSR     TrapTask13  
+00001596                           935  
+00001596                           936  
+00001596  4CDF 0200                937      MOVEM.L     (A7)+,A1    * restore register from stack
+0000159A  6000 FB4A                938      BRA     doneOp
+0000159E                           939  
+0000159E                           940  *********************************************************************************
+0000159E                           941  * Method Name:  movemMemCmd
+0000159E                           942  * Description:      handles a MOVEM.W command   (mem->reg)
+0000159E                           943  *
+0000159E                           944  * Preconditions:        A0 - contains the address of the command
+0000159E                           945  * Postconditions:   
+0000159E                           946  *********************************************************************************
+0000159E                           947  movemMemCmd:
+0000159E  48E7 0040                948      MOVEM.L     A1,-(A7)    * store register to stack
+000015A2                           949  
+000015A2  43F9 00001CD6            950      LEA     movemMemMsg,A1
+000015A8  4EB9 00001B40            951      JSR     TrapTask13  
+000015AE                           952  
+000015AE                           953  
+000015AE  4CDF 0200                954      MOVEM.L     (A7)+,A1    * restore register from stack
+000015B2  6000 FB32                955      BRA     doneOp
+000015B6                           956  
+000015B6                           957  *********************************************************************************
+000015B6                           958  * Method Name:  movemRegCmd
+000015B6                           959  * Description:      handles a MOVEM.W command   (reg->mem)
+000015B6                           960  *
+000015B6                           961  * Preconditions:        A0 - contains the address of the command
+000015B6                           962  * Postconditions:   
+000015B6                           963  *********************************************************************************
+000015B6                           964  movemRegCmd:
+000015B6  48E7 0040                965      MOVEM.L     A1,-(A7)    * store register to stack
+000015BA                           966  
+000015BA  43F9 00001CCC            967      LEA     movemRegMsg,A1
+000015C0  4EB9 00001B40            968      JSR     TrapTask13  
+000015C6                           969  
+000015C6                           970  
+000015C6  4CDF 0200                971      MOVEM.L     (A7)+,A1    * restore register from stack
+000015CA  6000 FB1A                972      BRA     doneOp
+000015CE                           973  
+000015CE                           974  *********************************************************************************
+000015CE                           975  * Method Name:  moveaWCmd
+000015CE                           976  * Description:      handles a MOVEA.W command
+000015CE                           977  *
+000015CE                           978  * Preconditions:        A0 - contains the address of the command
+000015CE                           979  * Postconditions:   
+000015CE                           980  *********************************************************************************
+000015CE                           981  moveaWCmd:
+000015CE  48E7 0040                982      MOVEM.L     A1,-(A7)    * store register to stack
+000015D2                           983  
+000015D2  43F9 00001CA7            984      LEA     moveaWMsg,A1
+000015D8  4EB9 00001B40            985      JSR     TrapTask13  
+000015DE                           986  
+000015DE                           987  
+000015DE  4CDF 0200                988      MOVEM.L     (A7)+,A1    * restore register from stack
+000015E2  6000 FB02                989      BRA     doneOp
+000015E6                           990      
+000015E6                           991  *********************************************************************************
+000015E6                           992  * Method Name:  moveaLCmd
+000015E6                           993  * Description:      handles a MOVEA.L command
+000015E6                           994  *
+000015E6                           995  * Preconditions:        A0 - contains the address of the command
+000015E6                           996  * Postconditions:   
+000015E6                           997  *********************************************************************************
+000015E6                           998  moveaLCmd:
+000015E6  48E7 0040                999      MOVEM.L     A1,-(A7)    * store register to stack
+000015EA                          1000  
+000015EA  43F9 00001CAF           1001      LEA     moveaLMsg,A1
+000015F0  4EB9 00001B40           1002      JSR     TrapTask13  
+000015F6                          1003  
+000015F6                          1004  
+000015F6  4CDF 0200               1005      MOVEM.L     (A7)+,A1    * restore register from stack
+000015FA  6000 FAEA               1006      BRA     doneOp
+000015FE                          1007  
+000015FE                          1008  *********************************************************************************
+000015FE                          1009  * Method Name:  moveBCmd
+000015FE                          1010  * Description:      handles a MOVE.B command
+000015FE                          1011  *
+000015FE                          1012  * Preconditions:        A0 - contains the address of the command
+000015FE                          1013  * Postconditions:   
+000015FE                          1014  *********************************************************************************
+000015FE                          1015  moveBCmd:
+000015FE  48E7 0040               1016      MOVEM.L     A1,-(A7)    * store register to stack
+00001602                          1017  
+00001602  43F9 00001CB7           1018      LEA     moveBMsg,A1
+00001608  4EB9 00001B40           1019      JSR     TrapTask13  
+0000160E                          1020  
+0000160E                          1021  
+0000160E  4CDF 0200               1022      MOVEM.L     (A7)+,A1    * restore register from stack
+00001612  6000 FAD2               1023      BRA     doneOp
+00001616                          1024  
+00001616                          1025  *********************************************************************************
+00001616                          1026  * Method Name:  moveWCmd
+00001616                          1027  * Description:      handles a MOVE.W command
+00001616                          1028  *
+00001616                          1029  * Preconditions:        A0 - contains the address of the command
+00001616                          1030  * Postconditions:   
+00001616                          1031  *********************************************************************************
+00001616                          1032  moveWCmd:
+00001616  48E7 0040               1033      MOVEM.L     A1,-(A7)    * store register to stack
+0000161A                          1034  
+0000161A  43F9 00001CBE           1035      LEA     moveWMsg,A1
+00001620  4EB9 00001B40           1036      JSR     TrapTask13  
+00001626                          1037  
+00001626                          1038  
+00001626  4CDF 0200               1039      MOVEM.L     (A7)+,A1    * restore register from stack
+0000162A  6000 FABA               1040      BRA     doneOp
+0000162E                          1041  
+0000162E                          1042  *********************************************************************************
+0000162E                          1043  * Method Name:  moveLCmd
+0000162E                          1044  * Description:      handles a MOVE.L command
+0000162E                          1045  *
+0000162E                          1046  * Preconditions:        A0 - contains the address of the command
+0000162E                          1047  * Postconditions:   
+0000162E                          1048  *********************************************************************************
+0000162E                          1049  moveLCmd:
+0000162E  48E7 0040               1050      MOVEM.L     A1,-(A7)    * store register to stack
+00001632                          1051  
+00001632  43F9 00001CC5           1052      LEA     moveLMsg,A1
+00001638  4EB9 00001B40           1053      JSR     TrapTask13  
+0000163E                          1054  
+0000163E                          1055  
+0000163E  4CDF 0200               1056      MOVEM.L     (A7)+,A1    * restore register from stack
+00001642  6000 FAA2               1057      BRA     doneOp
+00001646                          1058  
+00001646                          1059  
+00001646                          1060  *********************************************************************************
+00001646                          1061  * Method Name:  rtsCmd
+00001646                          1062  * Description:      handles an RTS command
+00001646                          1063  *
+00001646                          1064  * Preconditions:        A0 - contains the address of the command
+00001646                          1065  * Postconditions:   
+00001646                          1066  *********************************************************************************
+00001646                          1067  rtsCmd:
+00001646  48E7 0040               1068      MOVEM.L     A1,-(A7)    * store register to stack
+0000164A                          1069  
+0000164A  43F9 00001D78           1070      LEA     rtsMsg,A1
+00001650  4EB9 00001B40           1071      JSR     TrapTask13  
+00001656                          1072  
+00001656                          1073  
+00001656  4CDF 0200               1074      MOVEM.L     (A7)+,A1    * restore register from stack
+0000165A  6000 FA8A               1075      BRA     doneOp
+0000165E                          1076          
+0000165E                          1077  *********************************************************************************
+0000165E                          1078  * Method Name:  jsrCmd
+0000165E                          1079  * Description:      handles a JSR command
+0000165E                          1080  *
+0000165E                          1081  * Preconditions:        A0 - contains the address of the command
+0000165E                          1082  * Postconditions:   
+0000165E                          1083  *********************************************************************************
+0000165E                          1084  jsrCmd:
+0000165E  48E7 0040               1085      MOVEM.L     A1,-(A7)    * store register on stack
+00001662                          1086      
+00001662  43F9 00001D7C           1087      LEA     jsrMsg,A1
+00001668  4EB9 00001B40           1088      JSR     TrapTask13
+0000166E                          1089  
+0000166E  4CDF 0200               1090      MOVEM.L     (A7)+,A1    * restore register from stack
+00001672  6000 FA72               1091      BRA         doneOp
+00001676                          1092          
+00001676                          1093  *********************************************************************************
+00001676                          1094  * Method Name:  braCmd
+00001676                          1095  * Description:      handles a BRA command
+00001676                          1096  *
+00001676                          1097  * Preconditions:        A0 - contains the address of the command
+00001676                          1098  * Postconditions:   
+00001676                          1099  *********************************************************************************
+00001676                          1100  braCmd:
+00001676  48E7 0040               1101      MOVEM.L     A1,-(A7)    * store register on stack
+0000167A                          1102      
+0000167A  43F9 00001D80           1103      LEA     braMsg,A1
+00001680  4EB9 00001B40           1104      JSR     TrapTask13
+00001686                          1105      
+00001686  4CDF 0200               1106      MOVEM.L     (A7)+,A1    * restore register from stack
+0000168A  6000 FA5A               1107              BRA doneOp
+0000168E                          1108              
+0000168E                          1109  *********************************************************************************
+0000168E                          1110  * Method Name:  bcsCmd
+0000168E                          1111  * Description:      handles a BCS command
+0000168E                          1112  *
+0000168E                          1113  * Preconditions:        A0 - contains the address of the command
+0000168E                          1114  * Postconditions:   
+0000168E                          1115  *********************************************************************************
+0000168E                          1116  bcsCmd:
+0000168E  48E7 0040               1117      MOVEM.L     A1,-(A7)    * store register on stack
+00001692                          1118      
+00001692  43F9 00001D84           1119      LEA     bcsMsg,A1
+00001698  4EB9 00001B40           1120      JSR     TrapTask13
+0000169E                          1121      
+0000169E  4CDF 0200               1122      MOVEM.L     (A7)+,A1    * restore register from stack
+000016A2  6000 FA42               1123              BRA doneOp
+000016A6                          1124              
+000016A6                          1125  *********************************************************************************
+000016A6                          1126  * Method Name:  bgeCmd
+000016A6                          1127  * Description:      handles a BGE command
+000016A6                          1128  *
+000016A6                          1129  * Preconditions:        A0 - contains the address of the command
+000016A6                          1130  * Postconditions:   
+000016A6                          1131  *********************************************************************************
+000016A6                          1132  bgeCmd:
+000016A6  48E7 0040               1133      MOVEM.L     A1,-(A7)    * store register on stack
+000016AA                          1134      
+000016AA  43F9 00001D88           1135      LEA     bgeMsg,A1
+000016B0  4EB9 00001B40           1136      JSR     TrapTask13
+000016B6                          1137      
+000016B6  4CDF 0200               1138      MOVEM.L     (A7)+,A1    * restore register from stack
+000016BA  6000 FA2A               1139              BRA doneOp
+000016BE                          1140              
+000016BE                          1141  *********************************************************************************
+000016BE                          1142  * Method Name:  bltCmd
+000016BE                          1143  * Description:      handles a BLT command
+000016BE                          1144  *
+000016BE                          1145  * Preconditions:        A0 - contains the address of the command
+000016BE                          1146  * Postconditions:   
+000016BE                          1147  *********************************************************************************
+000016BE                          1148  bltCmd:
+000016BE  48E7 0040               1149      MOVEM.L     A1,-(A7)    * store register on stack
+000016C2                          1150      
+000016C2  43F9 00001D8C           1151      LEA     bltMsg,A1
+000016C8  4EB9 00001B40           1152      JSR     TrapTask13
+000016CE                          1153      
+000016CE  4CDF 0200               1154      MOVEM.L     (A7)+,A1    * restore register from stack
+000016D2  6000 FA12               1155              BRA doneOp
+000016D6                          1156              
+000016D6                          1157  *********************************************************************************
+000016D6                          1158  * Method Name:  bvcCmd
+000016D6                          1159  * Description:      handles a BVC command
+000016D6                          1160  *
+000016D6                          1161  * Preconditions:        A0 - contains the address of the command
+000016D6                          1162  * Postconditions:   
+000016D6                          1163  *********************************************************************************
+000016D6                          1164  bvcCmd:
+000016D6  48E7 0040               1165      MOVEM.L     A1,-(A7)    * store register on stack
+000016DA                          1166      
+000016DA  43F9 00001D90           1167      LEA     bvcMsg,A1
+000016E0  4EB9 00001B40           1168      JSR     TrapTask13
+000016E6                          1169      
+000016E6  4CDF 0200               1170      MOVEM.L     (A7)+,A1    * restore register from stack
+000016EA  6000 F9FA               1171              BRA doneOp
+000016EE                          1172              
+000016EE                          1173  *********************************************************************************
+000016EE                          1174  * Method Name:  bclrCmd
+000016EE                          1175  * Description:      handles a BCLR command
+000016EE                          1176  *
+000016EE                          1177  * Preconditions:        A0 - contains the address of the command
+000016EE                          1178  * Postconditions:   
+000016EE                          1179  *********************************************************************************
+000016EE                          1180  bclrCmd:
+000016EE  48E7 0040               1181      MOVEM.L     A1,-(A7)    * store register on stack
+000016F2                          1182      
+000016F2  43F9 00001D94           1183      LEA     bclrMsg,A1
+000016F8  4EB9 00001B40           1184      JSR     TrapTask13
+000016FE                          1185      
+000016FE  4CDF 0200               1186      MOVEM.L     (A7)+,A1    * restore register from stack
+00001702  6000 F9E2               1187      BRA doneOp
+00001706                          1188      
+00001706                          1189  *********************************************************************************
+00001706                          1190  * Method Name:  mulsCmd
+00001706                          1191  * Description:      handles a MULS command
+00001706                          1192  *
+00001706                          1193  * Preconditions:        A0 - contains the address of the command
+00001706                          1194  * Postconditions:   
+00001706                          1195  *********************************************************************************
+00001706                          1196  mulsCmd:
+00001706  48E7 0040               1197      MOVEM.L     A1,-(A7)    * store register on stack
+0000170A  43F9 00001D99           1198      LEA     mulsMsg,A1
+00001710  4EB9 00001B40           1199      JSR     TrapTask13
+00001716                          1200  
+00001716                          1201      * first bitmask - 0000 0000 0011 1000 - result: 0-7 in D1
+00001716  3210                    1202      MOVE.W      (A0),D1     * copy address to D0 - 1100 DDD1 11MM MXXX
+00001718  C27C 0038               1203      AND.W       #$0038,D1   * store mode of effective address
+0000171C                          1204      
+0000171C                          1205      * second bitmask - 0000 0000 000 0111 - result: 0-7 in D2
+0000171C  3410                    1206      MOVE.W      (A0),D2     * copy address to D0 - 1100 DDD1 11MM MXXX
+0000171E  C47C 0007               1207      AND.W       #$0007,D2   * store register of effective address
+00001722                          1208      
+00001722                          1209      * third bitmask - 0000 1110 0000 0000 - result: 0-7 in D0
+00001722  3010                    1210      MOVE.W      (A0),D0     * copy address to D0 - 1100 DDD1 11MM MXXX    
+00001724  C07C 0E00               1211      AND.W       #$0E00,D0   * store destination data register
+00001728                          1212      
+00001728  4CDF 0200               1213      MOVEM.L     (A7)+,A1    * restore register from stack
+0000172C  6000 F9B8               1214      BRA doneOp
+00001730                          1215          
+00001730                          1216  
+00001730                          1217  *********************************************************************************
+00001730                          1218  * Method Name:  divsCmd
+00001730                          1219  * Description:      handles a DIVS command
+00001730                          1220  *
+00001730                          1221  * Preconditions:        A0 - contains the address of the command
+00001730                          1222  * Postconditions:   
+00001730                          1223  *********************************************************************************
+00001730                          1224  divsCmd:
+00001730                          1225      * 1000 DDD1 11MM MXXX
+00001730  48E7 0040               1226      MOVEM.L     A1,-(A7)    * store register on stack
+00001734                          1227      
+00001734  43F9 00001D9E           1228      LEA     divsMsg,A1
+0000173A  4EB9 00001B40           1229      JSR     TrapTask13
+00001740                          1230  
+00001740                          1231      * first bitmask for mode saved in D1
+00001740  3210                    1232      MOVE.W      (A0),D1     * copy address to D0 
+00001742  C27C 0038               1233      AND.W       #$0038,D1   * store mode of effective address
+00001746                          1234      
+00001746                          1235      * second bitmask for register in D2
+00001746  3410                    1236      MOVE.W      (A0),D2     * copy address to D0 
+00001748  C47C 0007               1237      AND.W       #$0007,D2   * store register of effective address
+0000174C                          1238      
+0000174C                          1239      * third bitmask for destination in D0
+0000174C  3010                    1240      MOVE.W      (A0),D0     * copy address to D0     
+0000174E  C07C 0E00               1241      AND.W       #$0E00,D0   * store destination data register
+00001752                          1242      
+00001752  4CDF 0200               1243      MOVEM.L     (A7)+,A1    * restore register from stack
+00001756  6000 F98E               1244      BRA doneOp
+0000175A                          1245  
+0000175A                          1246  
+0000175A                          1247  *********************************************************************************
+0000175A                          1248  * Method Name:  leaCmd
+0000175A                          1249  * Description:      handles a LEA command
+0000175A                          1250  *
+0000175A                          1251  * Preconditions:        A0 - contains the address of the command
+0000175A                          1252  * Postconditions:   
+0000175A                          1253  *********************************************************************************
+0000175A                          1254  leaCmd:
+0000175A  48E7 0040               1255      MOVEM.L     A1,-(A7)    * store register on stack
+0000175E                          1256      
+0000175E  43F9 00001DA3           1257      LEA     leaMsg,A1
+00001764  4EB9 00001B40           1258      JSR     TrapTask13
+0000176A                          1259      
+0000176A                          1260      
+0000176A                          1261      * first bitmask for mode saved in D1
+0000176A  3210                    1262      MOVE.W      (A0),D1     * copy address to D0 
+0000176C  C27C 0038               1263      AND.W       #$0038,D1   * store mode of effective address
+00001770                          1264      
+00001770                          1265      * second bitmask for register in D2
+00001770  3410                    1266      MOVE.W      (A0),D2     * copy address to D0 
+00001772  C47C 0007               1267      AND.W       #$0007,D2   * store register of effective address
+00001776                          1268      
+00001776                          1269      * third bitmask for destination in D0
+00001776  3010                    1270      MOVE.W      (A0),D0     * copy address to D0     
+00001778  C07C 0E00               1271      AND.W       #$0E00,D0   * store destination address register
+0000177C                          1272      
+0000177C  4CDF 0200               1273      MOVEM.L     (A7)+,A1    * restore register from stack
+00001780  6000 F964               1274      BRA doneOp
+00001784                          1275      
+00001784                          1276  *********************************************************************************
+00001784                          1277  * Method Name:  negBCmd
+00001784                          1278  * Description:      handles a NEG command
+00001784                          1279  *
+00001784                          1280  * Preconditions:        A0 - contains the address of the command
+00001784                          1281  * Postconditions:   
+00001784                          1282  *********************************************************************************
+00001784                          1283  negBCmd:
+00001784  48E7 0040               1284      MOVEM.L     A1,-(A7)    * store register on stack
+00001788                          1285      
+00001788  43F9 00001DA7           1286      LEA     negBMsg,A1
+0000178E  4EB9 00001B40           1287      JSR     TrapTask13
+00001794                          1288      
+00001794                          1289      * first bitmask for mode saved in D1
+00001794  3210                    1290      MOVE.W      (A0),D1     * copy address to D0 
+00001796  C27C 0038               1291      AND.W       #$0038,D1   * store mode of effective address
+0000179A                          1292      
+0000179A                          1293      * second bitmask for register in D2
+0000179A  3410                    1294      MOVE.W      (A0),D2     * copy address to D0
+0000179C  C47C 0007               1295      AND.W       #$0007,D2   * store register of effective address
+000017A0                          1296  
+000017A0                          1297      
+000017A0  4CDF 0200               1298      MOVEM.L     (A7)+,A1    * restore register from stack
+000017A4  6000 F940               1299      BRA doneOp
+000017A8                          1300      
+000017A8                          1301  *********************************************************************************
+000017A8                          1302  * Method Name:  negWCmd
+000017A8                          1303  * Description:      handles a NEG command
+000017A8                          1304  *
+000017A8                          1305  * Preconditions:        A0 - contains the address of the command
+000017A8                          1306  * Postconditions:   
+000017A8                          1307  *********************************************************************************
+000017A8                          1308  negWCmd:
+000017A8  48E7 0040               1309      MOVEM.L     A1,-(A7)    * store register on stack
+000017AC                          1310      
+000017AC  43F9 00001DAD           1311      LEA     negWMsg,A1
+000017B2  4EB9 00001B40           1312      JSR     TrapTask13
+000017B8                          1313      
+000017B8                          1314      * first bitmask for mode saved in D1
+000017B8  3210                    1315      MOVE.W      (A0),D1     * copy address to D0 
+000017BA  C27C 0038               1316      AND.W       #$0038,D1   * store mode of effective address
+000017BE                          1317      
+000017BE                          1318      * second bitmask for register in D2
+000017BE  3410                    1319      MOVE.W      (A0),D2     * copy address to D0
+000017C0  C47C 0007               1320      AND.W       #$0007,D2   * store register of effective address
+000017C4                          1321  
+000017C4                          1322      
+000017C4  4CDF 0200               1323      MOVEM.L     (A7)+,A1    * restore register from stack
+000017C8  6000 F91C               1324      BRA doneOp
+000017CC                          1325  
+000017CC                          1326  *********************************************************************************
+000017CC                          1327  * Method Name:  negLCmd
+000017CC                          1328  * Description:      handles a NEG command
+000017CC                          1329  *
+000017CC                          1330  * Preconditions:        A0 - contains the address of the command
+000017CC                          1331  * Postconditions:   
+000017CC                          1332  *********************************************************************************
+000017CC                          1333  negLCmd:
+000017CC  48E7 0040               1334      MOVEM.L     A1,-(A7)    * store register on stack
+000017D0                          1335      
+000017D0  43F9 00001DB3           1336      LEA     negLMsg,A1
+000017D6  4EB9 00001B40           1337      JSR     TrapTask13
+000017DC                          1338      
+000017DC                          1339      * first bitmask for mode saved in D1
+000017DC  3210                    1340      MOVE.W      (A0),D1     * copy address to D0 
+000017DE  C27C 0038               1341      AND.W       #$0038,D1   * store mode of effective address
+000017E2                          1342      
+000017E2                          1343      * second bitmask for register in D2
+000017E2  3410                    1344      MOVE.W      (A0),D2     * copy address to D0
+000017E4  C47C 0007               1345      AND.W       #$0007,D2   * store register of effective address
+000017E8                          1346  
+000017E8                          1347      
+000017E8  4CDF 0200               1348      MOVEM.L     (A7)+,A1    * restore register from stack
+000017EC  6000 F8F8               1349      BRA doneOp
+000017F0                          1350      
+000017F0                          1351  *********************************************************************************
+000017F0                          1352  * Method Name:  orCmd
+000017F0                          1353  * Description:      handles a OR command
+000017F0                          1354  *
+000017F0                          1355  * Preconditions:        A0 - contains the address of the command
+000017F0                          1356  * Postconditions:   
+000017F0                          1357  *********************************************************************************
+000017F0                          1358  orCmd:
+000017F0  48E7 0040               1359      MOVEM.L     A1,-(A7)    * store register on stack
+000017F4                          1360      
+000017F4  43F9 00001DB9           1361      LEA     orMsg,A1
+000017FA  4EB9 00001B40           1362      JSR     TrapTask13
+00001800                          1363      
+00001800                          1364      * first bitmask for mode saved in D1
+00001800  3210                    1365      MOVE.W      (A0),D1     * copy address to D0 
+00001802  C27C 0038               1366      AND.W       #$0038,D1   * store mode of effective address
+00001806                          1367      
+00001806                          1368      * second bitmask for register in D2
+00001806  3410                    1369      MOVE.W      (A0),D2     * copy address to D0
+00001808  C47C 0007               1370      AND.W       #$0007,D2   * store register of effective address
+0000180C                          1371      
+0000180C                          1372      * third bitmask for destination in D0
+0000180C  3010                    1373      MOVE.W      (A0),D0     * copy address to D0    
+0000180E  C07C 0E00               1374      AND.W       #$0E00,D0   * store destination address register
+00001812                          1375  
+00001812                          1376      * fourth bitmask for opmode in D3 -- CHECK: D3 ok?
+00001812  3610                    1377      MOVE.W      (A0),D3     * copy address to D3
+00001814  C67C 01C0               1378      AND.W       #$01C0,D3   * store opmode
+00001818                          1379      
+00001818  4CDF 0200               1380      MOVEM.L     (A7)+,A1    * restore register from stack
+0000181C  6000 F8C8               1381      BRA doneOp  
+00001820                          1382  
+00001820                          1383  *********************************************************************************
+00001820                          1384  * Method Name:  oriBCmd
+00001820                          1385  * Description:      handles a ORI command
+00001820                          1386  *
+00001820                          1387  * Preconditions:        A0 - contains the address of the command
+00001820                          1388  * Postconditions:   
+00001820                          1389  *********************************************************************************
+00001820                          1390  oriBCmd:
+00001820  48E7 0040               1391      MOVEM.L     A1,-(A7)    * store register on stack
+00001824                          1392      
+00001824  43F9 00001DBC           1393      LEA     oriBMsg,A1
+0000182A  4EB9 00001B40           1394      JSR     TrapTask13
+00001830                          1395      
+00001830                          1396          * first bitmask for mode saved in D1
+00001830  3210                    1397      MOVE.W      (A0),D1     * copy address to D0 
+00001832  C27C 0038               1398      AND.W       #$0038,D1   * store mode of effective address
+00001836                          1399      
+00001836                          1400      * second bitmask for register in D2
+00001836  3410                    1401      MOVE.W      (A0),D2     * copy address to D0
+00001838  C47C 0007               1402      AND.W       #$0007,D2   * store register of effective address
+0000183C                          1403      
+0000183C  4CDF 0200               1404      MOVEM.L     (A7)+,A1    * restore register from stack
+00001840  6000 F8A4               1405      BRA doneOp
+00001844                          1406      
+00001844                          1407  *********************************************************************************
+00001844                          1408  * Method Name:  oriWCmd
+00001844                          1409  * Description:      handles a ORI command
+00001844                          1410  *
+00001844                          1411  * Preconditions:        A0 - contains the address of the command
+00001844                          1412  * Postconditions:   
+00001844                          1413  *********************************************************************************
+00001844                          1414  oriWCmd:
+00001844  48E7 0040               1415      MOVEM.L     A1,-(A7)    * store register on stack
+00001848                          1416      
+00001848  43F9 00001DC2           1417      LEA     oriWMsg,A1
+0000184E  4EB9 00001B40           1418      JSR     TrapTask13
+00001854                          1419      
+00001854                          1420          * first bitmask for mode saved in D1
+00001854  3210                    1421      MOVE.W      (A0),D1     * copy address to D0 
+00001856  C27C 0038               1422      AND.W       #$0038,D1   * store mode of effective address
+0000185A                          1423      
+0000185A                          1424      * second bitmask for register in D2
+0000185A  3410                    1425      MOVE.W      (A0),D2     * copy address to D0
+0000185C  C47C 0007               1426      AND.W       #$0007,D2   * store register of effective address
+00001860                          1427  
+00001860                          1428      
+00001860  4CDF 0200               1429      MOVEM.L     (A7)+,A1    * restore register from stack
+00001864  6000 F880               1430      BRA doneOp
+00001868                          1431  
+00001868                          1432  *********************************************************************************
+00001868                          1433  * Method Name:  oriLCmd
+00001868                          1434  * Description:      handles a ORI command
+00001868                          1435  *
+00001868                          1436  * Preconditions:        A0 - contains the address of the command
+00001868                          1437  * Postconditions:   
+00001868                          1438  *********************************************************************************
+00001868                          1439  oriLCmd:
+00001868  48E7 0040               1440      MOVEM.L     A1,-(A7)    * store register on stack
+0000186C                          1441      
+0000186C  43F9 00001DC8           1442      LEA     oriLMsg,A1
+00001872  4EB9 00001B40           1443      JSR     TrapTask13
+00001878                          1444      
+00001878                          1445      * first bitmask for mode saved in D1
+00001878  3210                    1446      MOVE.W      (A0),D1     * copy address to D0 
+0000187A  C27C 0038               1447      AND.W       #$0038,D1   * store mode of effective address
+0000187E                          1448      
+0000187E                          1449      * second bitmask for register in D2
+0000187E  3410                    1450      MOVE.W      (A0),D2     * copy address to D0
+00001880  C47C 0007               1451      AND.W       #$0007,D2   * store register of effective address
+00001884                          1452  
+00001884                          1453      
+00001884  4CDF 0200               1454      MOVEM.L     (A7)+,A1    * restore register from stack
+00001888  6000 F85C               1455      BRA doneOp
+0000188C                          1456      
+0000188C                          1457  *********************************************************************************
+0000188C                          1458  * Method Name:  eorCmd
+0000188C                          1459  * Description:      handles a EOR command
+0000188C                          1460  *
+0000188C                          1461  * Preconditions:        A0 - contains the address of the command
+0000188C                          1462  * Postconditions:   
+0000188C                          1463  *********************************************************************************
+0000188C                          1464  eorCmd:
+0000188C  48E7 0040               1465      MOVEM.L     A1,-(A7)    * store register on stack
+00001890                          1466      
+00001890  43F9 00001DCE           1467      LEA     eorMsg,A1
+00001896  4EB9 00001B40           1468      JSR     TrapTask13
+0000189C                          1469      
+0000189C                          1470          * first bitmask for mode saved in D1
+0000189C  3210                    1471      MOVE.W      (A0),D1     * copy address to D0 
+0000189E  C27C 0038               1472      AND.W       #$0038,D1   * store mode of effective address
+000018A2                          1473      
+000018A2                          1474      * second bitmask for register in D2
+000018A2  3410                    1475      MOVE.W      (A0),D2     * copy address to D0 
+000018A4  C47C 0007               1476      AND.W       #$0007,D2   * store register of effective address
+000018A8                          1477      
+000018A8                          1478      * third bitmask for destination in D0
+000018A8  3010                    1479      MOVE.W      (A0),D0     * copy address to D0     
+000018AA  C07C 0E00               1480      AND.W       #$0E00,D0   * store destination data register
+000018AE                          1481  
+000018AE                          1482      
+000018AE  4CDF 0200               1483      MOVEM.L     (A7)+,A1    * restore register from stack
+000018B2  6000 F832               1484      BRA doneOp  
+000018B6                          1485  
+000018B6                          1486  *********************************************************************************
+000018B6                          1487  * Method Name:  lslBCmd
+000018B6                          1488  * Description:      handles a LSL command
+000018B6                          1489  *
+000018B6                          1490  * Preconditions:        A0 - contains the address of the command
+000018B6                          1491  * Postconditions:   
+000018B6                          1492  *********************************************************************************
+000018B6                          1493  lslBCmd:
+000018B6  48E7 0040               1494      MOVEM.L     A1,-(A7)    * store register on stack
+000018BA                          1495      
+000018BA  43F9 00001DD2           1496      LEA     lslBMsg,A1
+000018C0  4EB9 00001B40           1497      JSR     TrapTask13
+000018C6                          1498      
+000018C6                          1499      * first bitmask for counts of shifts saved in D1
+000018C6  3210                    1500      MOVE.W      (A0),D1     * copy address to D0 
+000018C8  C27C 0E00               1501      AND.W       #$0E00,D1   * counts of shifts or register #
+000018CC                          1502      
+000018CC                          1503      * second bitmask for either immediate or from a register in D2
+000018CC  3410                    1504      MOVE.W      (A0),D2     * copy address to D0
+000018CE  C47C 0020               1505      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+000018D2                          1506      
+000018D2                          1507          * third bitmask for destination register to be shifted in D0
+000018D2  3010                    1508      MOVE.W      (A0),D0     * copy address to D0     
+000018D4  C07C 0007               1509      AND.W       #$0007,D0   * store destination register to be shifted
+000018D8                          1510      
+000018D8                          1511      
+000018D8  4CDF 0200               1512      MOVEM.L     (A7)+,A1    * restore register from stack
+000018DC  6000 F808               1513      BRA doneOp
+000018E0                          1514      
+000018E0                          1515  *********************************************************************************
+000018E0                          1516  * Method Name:  lslWCmd
+000018E0                          1517  * Description:      handles a LSL command
+000018E0                          1518  *
+000018E0                          1519  * Preconditions:        A0 - contains the address of the command
+000018E0                          1520  * Postconditions:   
+000018E0                          1521  *********************************************************************************
+000018E0                          1522  lslWCmd:
+000018E0  48E7 0040               1523      MOVEM.L     A1,-(A7)    * store register on stack
+000018E4                          1524      
+000018E4  43F9 00001DD8           1525      LEA     lslWMsg,A1
+000018EA  4EB9 00001B40           1526      JSR     TrapTask13
+000018F0                          1527      
+000018F0                          1528      * first bitmask for counts of shifts saved in D1
+000018F0  3210                    1529      MOVE.W      (A0),D1     * copy address to D0 
+000018F2  C27C 0E00               1530      AND.W       #$0E00,D1   * counts of shifts or register #
+000018F6                          1531      
+000018F6                          1532      * second bitmask for either immediate or from a register in D2
+000018F6  3410                    1533      MOVE.W      (A0),D2     * copy address to D0
+000018F8  C47C 0020               1534      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+000018FC                          1535      
+000018FC                          1536          * third bitmask for destination register to be shifted in D0
+000018FC  3010                    1537      MOVE.W      (A0),D0     * copy address to D0     
+000018FE  C07C 0007               1538      AND.W       #$0007,D0   * store destination register to be shifted
+00001902                          1539      
+00001902                          1540      
+00001902  4CDF 0200               1541      MOVEM.L     (A7)+,A1    * restore register from stack
+00001906  6000 F7DE               1542      BRA doneOp
+0000190A                          1543      
+0000190A                          1544  *********************************************************************************
+0000190A                          1545  * Method Name:  lslLCmd
+0000190A                          1546  * Description:      handles a LSL command
+0000190A                          1547  *
+0000190A                          1548  * Preconditions:        A0 - contains the address of the command
+0000190A                          1549  * Postconditions:   
+0000190A                          1550  *********************************************************************************
+0000190A                          1551  lslLCmd:
+0000190A  48E7 0040               1552      MOVEM.L     A1,-(A7)    * store register on stack
+0000190E                          1553      
+0000190E  43F9 00001DDE           1554      LEA     lslLMsg,A1
+00001914  4EB9 00001B40           1555      JSR     TrapTask13
+0000191A                          1556      
+0000191A                          1557      * first bitmask for counts of shifts saved in D1
+0000191A  3210                    1558      MOVE.W      (A0),D1     * copy address to D0 
+0000191C  C27C 0E00               1559      AND.W       #$0E00,D1   * counts of shifts or register #
+00001920                          1560      
+00001920                          1561      * second bitmask for either immediate or from a register in D2
+00001920  3410                    1562      MOVE.W      (A0),D2     * copy address to D0
+00001922  C47C 0020               1563      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001926                          1564      
+00001926                          1565          * third bitmask for destination register to be shifted in D0
+00001926  3010                    1566      MOVE.W      (A0),D0     * copy address to D0     
+00001928  C07C 0007               1567      AND.W       #$0007,D0   * store destination register to be shifted
+0000192C                          1568      
+0000192C                          1569      
+0000192C  4CDF 0200               1570      MOVEM.L     (A7)+,A1    * restore register from stack
+00001930  6000 F7B4               1571      BRA doneOp
+00001934                          1572  
+00001934                          1573  *********************************************************************************
+00001934                          1574  * Method Name:  lsrBCmd
+00001934                          1575  * Description:      handles a LSR command
+00001934                          1576  *
+00001934                          1577  * Preconditions:        A0 - contains the address of the command
+00001934                          1578  * Postconditions:   
+00001934                          1579  *********************************************************************************
+00001934                          1580  lsrBCmd:
+00001934  48E7 0040               1581      MOVEM.L     A1,-(A7)    * store register on stack
+00001938                          1582      
+00001938  43F9 00001DE4           1583      LEA     lsrBMsg,A1
+0000193E  4EB9 00001B40           1584      JSR     TrapTask13
+00001944                          1585      
+00001944                          1586      * first bitmask for counts of shifts saved in D1
+00001944  3210                    1587      MOVE.W      (A0),D1     * copy address to D0 
+00001946  C27C 0E00               1588      AND.W       #$0E00,D1   * counts of shifts or register #
+0000194A                          1589      
+0000194A                          1590      * second bitmask for either immediate or from a register in D2
+0000194A  3410                    1591      MOVE.W      (A0),D2     * copy address to D0
+0000194C  C47C 0020               1592      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001950                          1593      
+00001950                          1594          * third bitmask for destination register to be shifted in D0
+00001950  3010                    1595      MOVE.W      (A0),D0     * copy address to D0     
+00001952  C07C 0007               1596      AND.W       #$0007,D0   * store destination register to be shifted
+00001956                          1597      
+00001956                          1598      
+00001956  4CDF 0200               1599      MOVEM.L     (A7)+,A1    * restore register from stack
+0000195A  6000 F78A               1600      BRA doneOp
+0000195E                          1601  
+0000195E                          1602  *********************************************************************************
+0000195E                          1603  * Method Name:  lsrWCmd
+0000195E                          1604  * Description:      handles a LSR command
+0000195E                          1605  *
+0000195E                          1606  * Preconditions:        A0 - contains the address of the command
+0000195E                          1607  * Postconditions:   
+0000195E                          1608  *********************************************************************************
+0000195E                          1609  lsrWCmd:
+0000195E  48E7 0040               1610      MOVEM.L     A1,-(A7)    * store register on stack
+00001962                          1611      
+00001962  43F9 00001DEA           1612      LEA     lsrWMsg,A1
+00001968  4EB9 00001B40           1613      JSR     TrapTask13
+0000196E                          1614      
+0000196E                          1615      * first bitmask for counts of shifts saved in D1
+0000196E  3210                    1616      MOVE.W      (A0),D1     * copy address to D0 
+00001970  C27C 0E00               1617      AND.W       #$0E00,D1   * counts of shifts or register #
+00001974                          1618      
+00001974                          1619      * second bitmask for either immediate or from a register in D2
+00001974  3410                    1620      MOVE.W      (A0),D2     * copy address to D0
+00001976  C47C 0020               1621      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+0000197A                          1622      
+0000197A                          1623          * third bitmask for destination register to be shifted in D0
+0000197A  3010                    1624      MOVE.W      (A0),D0     * copy address to D0     
+0000197C  C07C 0007               1625      AND.W       #$0007,D0   * store destination register to be shifted
+00001980                          1626      
+00001980  4CDF 0200               1627      MOVEM.L     (A7)+,A1    * restore register from stack
+00001984  6000 F760               1628      BRA doneOp
+00001988                          1629      
+00001988                          1630  *********************************************************************************
+00001988                          1631  * Method Name:  lsrLCmd
+00001988                          1632  * Description:      handles a LSR command
+00001988                          1633  *
+00001988                          1634  * Preconditions:        A0 - contains the address of the command
+00001988                          1635  * Postconditions:   
+00001988                          1636  *********************************************************************************
+00001988                          1637  lsrLCmd:
+00001988  48E7 0040               1638      MOVEM.L     A1,-(A7)    * store register on stack
+0000198C                          1639      
+0000198C  43F9 00001DF0           1640      LEA     lsrLMsg,A1
+00001992  4EB9 00001B40           1641      JSR     TrapTask13
+00001998                          1642      
+00001998                          1643      * first bitmask for counts of shifts saved in D1
+00001998  3210                    1644      MOVE.W      (A0),D1     * copy address to D0 
+0000199A  C27C 0E00               1645      AND.W       #$0E00,D1   * counts of shifts or register #
+0000199E                          1646      
+0000199E                          1647      * second bitmask for either immediate or from a register in D2
+0000199E  3410                    1648      MOVE.W      (A0),D2     * copy address to D0
+000019A0  C47C 0020               1649      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+000019A4                          1650      
+000019A4                          1651          * third bitmask for destination register to be shifted in D0
+000019A4  3010                    1652      MOVE.W      (A0),D0     * copy address to D0     
+000019A6  C07C 0007               1653      AND.W       #$0007,D0   * store destination register to be shifted
+000019AA                          1654      
+000019AA  4CDF 0200               1655      MOVEM.L     (A7)+,A1    * restore register from stack
+000019AE  6000 F736               1656      BRA doneOp
+000019B2                          1657      
+000019B2                          1658  *********************************************************************************
+000019B2                          1659  * Method Name:  aslCmd
+000019B2                          1660  * Description:      handles a ASL command
+000019B2                          1661  *
+000019B2                          1662  * Preconditions:        A0 - contains the address of the command
+000019B2                          1663  * Postconditions:   
+000019B2                          1664  *********************************************************************************
+000019B2                          1665  aslCmd:
+000019B2  48E7 0040               1666      MOVEM.L     A1,-(A7)    * store register on stack
+000019B6                          1667      
+000019B6  43F9 00001DF6           1668      LEA     aslMsg,A1
+000019BC  4EB9 00001B40           1669      JSR     TrapTask13
+000019C2                          1670      
+000019C2                          1671      * first bitmask for mode saved in D1
+000019C2  3210                    1672      MOVE.W      (A0),D1     * copy address to D0 
+000019C4  C27C 0038               1673      AND.W       #$0038,D1   * store mode of effective address
+000019C8                          1674      
+000019C8                          1675      * second bitmask for register in D2
+000019C8  3410                    1676      MOVE.W      (A0),D2     * copy address to D0
+000019CA  C47C 0007               1677      AND.W       #$0007,D2   * store register of effective address
+000019CE                          1678  
+000019CE                          1679      
+000019CE  4CDF 0200               1680      MOVEM.L     (A7)+,A1    * restore register from stack
+000019D2  6000 F712               1681      BRA doneOp
+000019D6                          1682      
+000019D6                          1683      
+000019D6                          1684  *********************************************************************************
+000019D6                          1685  * Method Name:  asrCmd
+000019D6                          1686  * Description:      handles a ASR command
+000019D6                          1687  *
+000019D6                          1688  * Preconditions:        A0 - contains the address of the command
+000019D6                          1689  * Postconditions:   
+000019D6                          1690  *********************************************************************************
+000019D6                          1691  asrCmd:
+000019D6  48E7 0040               1692      MOVEM.L     A1,-(A7)    * store register on stack
+000019DA                          1693      
+000019DA  43F9 00001DFA           1694      LEA     asrMsg,A1
+000019E0  4EB9 00001B40           1695      JSR     TrapTask13
+000019E6                          1696      
+000019E6                          1697      * first bitmask for mode saved in D1
+000019E6  3210                    1698      MOVE.W      (A0),D1     * copy address to D0 
+000019E8  C27C 0038               1699      AND.W       #$0038,D1   * store mode of effective address
+000019EC                          1700      
+000019EC                          1701      * second bitmask for register in D2
+000019EC  3410                    1702      MOVE.W      (A0),D2     * copy address to D0
+000019EE  C47C 0007               1703      AND.W       #$0007,D2   * store register of effective address
+000019F2                          1704  
+000019F2                          1705      
+000019F2  4CDF 0200               1706      MOVEM.L     (A7)+,A1    * restore register from stack
+000019F6  6000 F6EE               1707      BRA doneOp
+000019FA                          1708      
+000019FA                          1709  *********************************************************************************
+000019FA                          1710  * Method Name:  rolBCmd
+000019FA                          1711  * Description:      handles a ROL command
+000019FA                          1712  *
+000019FA                          1713  * Preconditions:        A0 - contains the address of the command
+000019FA                          1714  * Postconditions:   
+000019FA                          1715  *********************************************************************************
+000019FA                          1716  rolBCmd:
+000019FA  48E7 0040               1717      MOVEM.L     A1,-(A7)    * store register on stack
+000019FE                          1718      
+000019FE  43F9 00001DFE           1719      LEA     rolBMsg,A1
+00001A04  4EB9 00001B40           1720      JSR     TrapTask13
+00001A0A                          1721      
+00001A0A                          1722      * first bitmask for counts of shifts saved in D1
+00001A0A  3210                    1723      MOVE.W      (A0),D1     * copy address to D0 
+00001A0C  C27C 0E00               1724      AND.W       #$0E00,D1   * counts of shifts or register #
+00001A10                          1725      
+00001A10                          1726      * second bitmask for either immediate or from a register in D2
+00001A10  3410                    1727      MOVE.W      (A0),D2     * copy address to D0
+00001A12  C47C 0020               1728      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001A16                          1729      
+00001A16                          1730          * third bitmask for destination register to be shifted in D0
+00001A16  3010                    1731      MOVE.W      (A0),D0     * copy address to D0     
+00001A18  C07C 0007               1732      AND.W       #$0007,D0   * store destination register to be shifted
+00001A1C                          1733  
+00001A1C                          1734      
+00001A1C  4CDF 0200               1735      MOVEM.L     (A7)+,A1    * restore register from stack
+00001A20  6000 F6C4               1736      BRA doneOp
+00001A24                          1737  
+00001A24                          1738  *********************************************************************************
+00001A24                          1739  * Method Name:  rolWCmd
+00001A24                          1740  * Description:      handles a ROL command
+00001A24                          1741  *
+00001A24                          1742  * Preconditions:        A0 - contains the address of the command
+00001A24                          1743  * Postconditions:   
+00001A24                          1744  *********************************************************************************
+00001A24                          1745  rolWCmd:
+00001A24  48E7 0040               1746      MOVEM.L     A1,-(A7)    * store register on stack
+00001A28                          1747      
+00001A28  43F9 00001E04           1748      LEA     rolWMsg,A1
+00001A2E  4EB9 00001B40           1749      JSR     TrapTask13
+00001A34                          1750      
+00001A34                          1751      
+00001A34                          1752      * first bitmask for counts of shifts saved in D1
+00001A34  3210                    1753      MOVE.W      (A0),D1     * copy address to D0 
+00001A36  C27C 0E00               1754      AND.W       #$0E00,D1   * counts of shifts or register #
+00001A3A                          1755      
+00001A3A                          1756      * second bitmask for either immediate or from a register in D2
+00001A3A  3410                    1757      MOVE.W      (A0),D2     * copy address to D0
+00001A3C  C47C 0020               1758      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001A40                          1759      
+00001A40                          1760          * third bitmask for destination register to be shifted in D0
+00001A40  3010                    1761      MOVE.W      (A0),D0     * copy address to D0     
+00001A42  C07C 0007               1762      AND.W       #$0007,D0   * store destination register to be shifted
+00001A46                          1763  
+00001A46                          1764      
+00001A46  4CDF 0200               1765      MOVEM.L     (A7)+,A1    * restore register from stack
+00001A4A  6000 F69A               1766      BRA doneOp
+00001A4E                          1767      
+00001A4E                          1768  *********************************************************************************
+00001A4E                          1769  * Method Name:  rolLCmd
+00001A4E                          1770  * Description:      handles a ROL command
+00001A4E                          1771  *
+00001A4E                          1772  * Preconditions:        A0 - contains the address of the command
+00001A4E                          1773  * Postconditions:   
+00001A4E                          1774  *********************************************************************************
+00001A4E                          1775  rolLCmd:
+00001A4E  48E7 0040               1776      MOVEM.L     A1,-(A7)    * store register on stack
+00001A52                          1777      
+00001A52  43F9 00001E0A           1778      LEA     rolLMsg,A1
+00001A58  4EB9 00001B40           1779      JSR     TrapTask13
+00001A5E                          1780      
+00001A5E                          1781      * first bitmask for counts of shifts saved in D1
+00001A5E  3210                    1782      MOVE.W      (A0),D1     * copy address to D0 
+00001A60  C27C 0E00               1783      AND.W       #$0E00,D1   * counts of shifts or register #
+00001A64                          1784      
+00001A64                          1785      * second bitmask for either immediate or from a register in D2
+00001A64  3410                    1786      MOVE.W      (A0),D2     * copy address to D0
+00001A66  C47C 0020               1787      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001A6A                          1788      
+00001A6A                          1789          * third bitmask for destination register to be shifted in D0
+00001A6A  3010                    1790      MOVE.W      (A0),D0     * copy address to D0     
+00001A6C  C07C 0007               1791      AND.W       #$0007,D0   * store destination register to be shifted
+00001A70                          1792  
+00001A70                          1793      
+00001A70  4CDF 0200               1794      MOVEM.L     (A7)+,A1    * restore register from stack
+00001A74  6000 F670               1795      BRA doneOp
+00001A78                          1796          
+00001A78                          1797      
+00001A78                          1798  *********************************************************************************
+00001A78                          1799  * Method Name:  rorBCmd
+00001A78                          1800  * Description:      handles a ROR command
+00001A78                          1801  *
+00001A78                          1802  * Preconditions:        A0 - contains the address of the command
+00001A78                          1803  * Postconditions:   
+00001A78                          1804  *********************************************************************************
+00001A78                          1805  rorBCmd:
+00001A78  48E7 0040               1806      MOVEM.L     A1,-(A7)    * store register on stack
+00001A7C                          1807      
+00001A7C  43F9 00001E10           1808      LEA     rorBMsg,A1
+00001A82  4EB9 00001B40           1809      JSR     TrapTask13
+00001A88                          1810  
+00001A88                          1811          * first bitmask for counts of shifts saved in D1
+00001A88  3210                    1812      MOVE.W      (A0),D1     * copy address to D0 
+00001A8A  C27C 0E00               1813      AND.W       #$0E00,D1   * counts of shifts or register #
+00001A8E                          1814      
+00001A8E                          1815      * second bitmask for either immediate or from a register in D2
+00001A8E  3410                    1816      MOVE.W      (A0),D2     * copy address to D0
+00001A90  C47C 0020               1817      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001A94                          1818      
+00001A94                          1819          * third bitmask for destination register to be shifted in D0
+00001A94  3010                    1820      MOVE.W      (A0),D0     * copy address to D0     
+00001A96  C07C 0007               1821      AND.W       #$0007,D0   * store destination register to be shifted
+00001A9A                          1822  
+00001A9A                          1823      
+00001A9A  4CDF 0200               1824      MOVEM.L     (A7)+,A1    * restore register from stack
+00001A9E  6000 F646               1825      BRA doneOp
+00001AA2                          1826  
+00001AA2                          1827  *********************************************************************************
+00001AA2                          1828  * Method Name:  rorWCmd
+00001AA2                          1829  * Description:      handles a ROR command
+00001AA2                          1830  *
+00001AA2                          1831  * Preconditions:        A0 - contains the address of the command
+00001AA2                          1832  * Postconditions:   
+00001AA2                          1833  *********************************************************************************
+00001AA2                          1834  rorWCmd:
+00001AA2  48E7 0040               1835      MOVEM.L     A1,-(A7)    * store register on stack
+00001AA6                          1836      
+00001AA6  43F9 00001E16           1837      LEA     rorWMsg,A1
+00001AAC  4EB9 00001B40           1838      JSR     TrapTask13
+00001AB2                          1839      
+00001AB2                          1840      * first bitmask for counts of shifts saved in D1
+00001AB2  3210                    1841      MOVE.W      (A0),D1     * copy address to D0 
+00001AB4  C27C 0E00               1842      AND.W       #$0E00,D1   * counts of shifts or register #
+00001AB8                          1843      
+00001AB8                          1844      * second bitmask for either immediate or from a register in D2
+00001AB8  3410                    1845      MOVE.W      (A0),D2     * copy address to D0
+00001ABA  C47C 0020               1846      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001ABE                          1847      
+00001ABE                          1848          * third bitmask for destination register to be shifted in D0
+00001ABE  3010                    1849      MOVE.W      (A0),D0     * copy address to D0     
+00001AC0  C07C 0007               1850      AND.W       #$0007,D0   * store destination register to be shifted
+00001AC4                          1851  
+00001AC4                          1852      
+00001AC4  4CDF 0200               1853      MOVEM.L     (A7)+,A1    * restore register from stack
+00001AC8  6000 F61C               1854      BRA doneOp
+00001ACC                          1855      
+00001ACC                          1856  *********************************************************************************
+00001ACC                          1857  * Method Name:  rorLCmd
+00001ACC                          1858  * Description:      handles a ROR command
+00001ACC                          1859  *
+00001ACC                          1860  * Preconditions:        A0 - contains the address of the command
+00001ACC                          1861  * Postconditions:   
+00001ACC                          1862  *********************************************************************************
+00001ACC                          1863  rorLCmd:
+00001ACC  48E7 0040               1864      MOVEM.L     A1,-(A7)    * store register on stack
+00001AD0                          1865      
+00001AD0  43F9 00001E1C           1866      LEA     rorLMsg,A1
+00001AD6  4EB9 00001B40           1867      JSR     TrapTask13
+00001ADC                          1868      
+00001ADC                          1869      * first bitmask for counts of shifts saved in D1
+00001ADC  3210                    1870      MOVE.W      (A0),D1     * copy address to D0 
+00001ADE  C27C 0E00               1871      AND.W       #$0E00,D1   * counts of shifts or register #
+00001AE2                          1872      
+00001AE2                          1873      * second bitmask for either immediate or from a register in D2
+00001AE2  3410                    1874      MOVE.W      (A0),D2     * copy address to D0
+00001AE4  C47C 0020               1875      AND.W       #$0020,D2   * if 0: immediate, if 1: from register
+00001AE8                          1876      
+00001AE8                          1877          * third bitmask for destination register to be shifted in D0
+00001AE8  3010                    1878      MOVE.W      (A0),D0     * copy address to D0     
+00001AEA  C07C 0007               1879      AND.W       #$0007,D0   * store destination register to be shifted
+00001AEE                          1880  
+00001AEE                          1881      
+00001AEE  4CDF 0200               1882      MOVEM.L     (A7)+,A1    * restore register from stack
+00001AF2  6000 F5F2               1883      BRA doneOp
+00001AF6                          1884      
+00001AF6                          1885  *********************************************************************************
+00001AF6                          1886  * Method Name: findMode
+00001AF6                          1887  * Description: finds the Mode of the effective address   
+00001AF6                          1888  *
+00001AF6                          1889  * Preconditions: 3 bits of Mode in D7    
+00001AF6                          1890  * Postconditions: returns   
+00001AF6                          1891  *********************************************************************************
+00001AF6                          1892  *findMode:
+00001AF6                          1893  *    *example: 0000 0000 0000 0111 - absolute long
+00001AF6                          1894  *    *bitmask: 0000 0000 0000 0111
+00001AF6                          1895  *    *         $#0007
+00001AF6                          1896  *    
+00001AF6                          1897  *    CMP.W   #$0, D7
+00001AF6                          1898  *    BEQ     findRegDR
+00001AF6                          1899  *    
+00001AF6                          1900  *    CMP.W   #$1, D7
+00001AF6                          1901  *    BEQ     findRegAR
+00001AF6                          1902  *    
+00001AF6                          1903  *    CMP.W   #$2, D7
+00001AF6                          1904  *    BEQ     findRegARVal
+00001AF6                          1905  *    
+00001AF6                          1906  *    CMP.W   #$3, D7
+00001AF6                          1907  *    BEQ     findRegARPostInc
+00001AF6                          1908  *    
+00001AF6                          1909  *    CMP.W   #$4, D7
+00001AF6                          1910  *    BEQ     findRegARPreDec
+00001AF6                          1911  *    
+00001AF6                          1912  *    CMP.W   #$5, D7
+00001AF6                          1913  *    BEQ     findRegARDisplacement
+00001AF6                          1914  *    
+00001AF6                          1915  *    CMP.W   #$6, D7
+00001AF6                          1916  *    BEQ     findRegARIndex
+00001AF6                          1917  *    
+00001AF6                          1918  *    CMP.W   #$7, D7
+00001AF6                          1919  *    BEQ     findRegOther
+00001AF6                          1920  *    
+00001AF6                          1921  *    RTS
+00001AF6                          1922  *    
+00001AF6                          1923  **********************************************************************************
+00001AF6                          1924  ** Method Name:    findReg
+00001AF6                          1925  ** Description:        
+00001AF6                          1926  **
+00001AF6                          1927  * Preconditions:        
+00001AF6                          1928  * Postconditions:    
+00001AF6                          1929  *********************************************************************************
+00001AF6                          1930  *findReg:
+00001AF6                          1931  *
+00001AF6                          1932  *    RTS
+00001AF6                          1933  *
+00001AF6                          1934  *********************************************************************************
+00001AF6                          1935  * Method Name:    eaModeReg
+00001AF6                          1936  * Description:        
+00001AF6                          1937  *
+00001AF6                          1938  * Preconditions:        
+00001AF6                          1939  * Postconditions:    
+00001AF6                          1940  *********************************************************************************
+00001AF6                          1941  *eaModeReg:
+00001AF6                          1942  *    JSR     findMode
+00001AF6                          1943  *    JSR     findReg
+00001AF6                          1944  *    RTS
+00001AF6                          1945  *
+00001AF6                          1946  **********************************************************************************
+00001AF6                          1947  ** Method Name:    eaRegMode
+00001AF6                          1948  ** Description:        
+00001AF6                          1949  **
+00001AF6                          1950  ** Preconditions:  6 bits containing 3 bits register & 3 bits mode in D7   
+00001AF6                          1951  ** Postconditions:    
+00001AF6                          1952  **********************************************************************************
+00001AF6                          1953  *eaRegMode:
+00001AF6                          1954  *
+00001AF6                          1955  **    JSR     findReg
+00001AF6                          1956  **    JSR     findMode
+00001AF6                          1957  *    
+00001AF6                          1958  *    * example : 001 000
+00001AF6                          1959  *    * D7 contains a long: 0000 0000 0000 1000 - Data register 1
+00001AF6                          1960  *    * bitmask: 0000 0000 0011 1000
+00001AF6                          1961  *    AND.W #$0038, D7
+00001AF6                          1962  *    
+00001AF6                          1963  *    
+00001AF6                          1964  *    CMP.W #$
+00001AF6                          1965  *
+00001AF6                          1966  *    RTS    
+00001AF6                          1967  
+00001AF6                          1968  *********************************************************************************
+00001AF6                          1969  * Method Name:  printMemAddr
+00001AF6                          1970  * Description:      prints the address contained in A0
+00001AF6                          1971  *
+00001AF6                          1972  * Preconditions:        A0 - the address to print
+00001AF6                          1973  * Postconditions:   
+00001AF6                          1974  *********************************************************************************
+00001AF6                          1975  printMemAddrToSave  REG     A1/D0-D2
+00001AF6                          1976  printMemAddr:
+00001AF6  48E7 E040               1977      MOVEM.L     printMemAddrToSave,-(A7)    * store registers to stack
+00001AFA                          1978      
+00001AFA  43F9 00001C49           1979      LEA         addrBuff,A1     * load the buffer to store addresses
+00001B00  103C 0000               1980      MOVE.B      #0,D0           * i = 0
+00001B04  2208                    1981      MOVE.L      A0,D1           * copy the address into a data register
+00001B06                          1982  memAddrLoop:
+00001B06  2401                    1983      MOVE.L      D1,D2
+00001B08  C4BC F0000000           1984      AND.L       #$F0000000,D2   * bitmask to get most significant digit
+00001B0E  E989                    1985      LSL.L       #4,D1           * shift left one digit for next iteration
+00001B10                          1986      
+00001B10  E99A                    1987      ROL.L       #4,D2           * rotate most significant digit to least significant digit
+00001B12  0602 0030               1988      ADD.B       #$30,D2         * convert from hex to ascii
+00001B16  1382 0000               1989      MOVE.B      D2,(A1,D0)      * store ascii value in buffer
+00001B1A                          1990      
+00001B1A  5200                    1991      ADDQ.B      #1,D0           * i++
+00001B1C  B03C 0008               1992      CMP.B       #8,D0           * wihle i != 8
+00001B20  66E4                    1993      BNE         memAddrLoop     * continue
+00001B22                          1994      
+00001B22  137C 0020 0008          1995      MOVE.B      #$20,(8,A1)     * add space after address
+00001B28  137C 0000 0009          1996      MOVE.B      #$00,(9,A1)     * null terminated string
+00001B2E                          1997      
+00001B2E  43F9 00001C49           1998      LEA         addrBuff,A1     * point back to start of buffer
+00001B34  4EB9 00001B40           1999      JSR         TrapTask13      * print memory address stored in the buffer
+00001B3A                          2000      
+00001B3A  4CDF 0207               2001      MOVEM.L     (A7)+,printMemAddrToSave    * restore register from stack
+00001B3E  4E75                    2002      RTS
+00001B40                          2003  
+00001B40                          2004  *********************************************************************************
+00001B40                          2005  * Method Name: TrapTask13
+00001B40                          2006  * Description: Creates a file if none exists, and appends bytes to that file
+00001B40                          2007  *   while also echoing the written bytes to the screen.  You shouldn't need to
+00001B40                          2008  *   change this code.
+00001B40                          2009  *
+00001B40                          2010  * Calling Convention: Callee-Saved 
+00001B40                          2011  *
+00001B40                          2012  * Preconditions & Method Input:
+00001B40                          2013  *   A1 points to the null-terminated buffer to write (newline will be added for you)
+00001B40                          2014  *
+00001B40                          2015  * Postconditions & Output:
+00001B40                          2016  *   ALL files that were previously open will be CLOSED (FileIDs will be invalid)
+00001B40                          2017  *   See 'Output.txt' in directory for the results, also piped to the console
+00001B40                          2018  *
+00001B40                          2019  *
+00001B40                          2020  *  A2 holds a pointer to null terminated string to write (input)
+00001B40                          2021  *  A3 points to the null-terminated file name
+00001B40                          2022  *  D3 holds the number of bytes already in the file to write
+00001B40                          2023  *
+00001B40                          2024  *  D5 holds number of bytes to write
+00001B40                          2025  ********************************************************************************
+00001B40                          2026  toSave REG D0-D5/A2-A3
+00001B40                          2027  TrapTask13:
+00001B40                          2028      *******************************************************************
+00001B40                          2029      * Method initialization, regsiter spilling, parameter saving, etc.
+00001B40                          2030      *******************************************************************
+00001B40  48E7 FC30               2031      MOVEM.L toSave, -(SP)   ;  Callee-Saved, so save and restore     
+00001B44                          2032        
+00001B44  2449                    2033      MOVEA.L A1, A2 ; save this buffer to write
+00001B46  47F9 00001C35           2034      LEA outFilename, A3  ; save this for later, too
+00001B4C                          2035        
+00001B4C  303C 0032               2036      move #50,d0   
+00001B50  4E4F                    2037      trap #15 ; close all files, suggested to begin any IO 
+00001B52                          2038      *******************************************************************
+00001B52                          2039      * End Method Init
+00001B52                          2040      *******************************************************************
+00001B52                          2041  
+00001B52                          2042      ******************************************************************************************
+00001B52                          2043      * Calculate the number of bytes to write by searching for the null in the target buffer A0
+00001B52                          2044      ******************************************************************************************
+00001B52  4285                    2045      CLR.L D5 *D5 is now the number of bytes to write
+00001B54                          2046  nullLoop:
+00001B54  1019                    2047      MOVE.B (A1)+, D0
+00001B56  0C00 0000               2048      CMPI.B #0,D0  * compare to null
+00001B5A  6700 0006               2049      BEQ findNullLoopDone
+00001B5E  5245                    2050      ADDI.W #1, D5
+00001B60  60F2                    2051      BRA nullLoop
+00001B62                          2052      
+00001B62                          2053  findNullLoopDone:
+00001B62  224B                    2054      MOVEA.L A3, A1 * reset A1 so it points to the file to write to (to open, next)
+00001B64                          2055      
+00001B64                          2056      ;check if file exists, and open with task 51 if so, otherwise 52
+00001B64                          2057      ;(precondition here is A1 points to the null-terminated filename )
+00001B64  103C 0033               2058      MOVE.B #51, D0      ;open file (task 51 is existing, 52 is new)
+00001B68  4E4F                    2059      trap #15
+00001B6A                          2060        
+00001B6A                          2061      if.w D0 <NE> #0 then.s         ; if file error (404, not found)
+00001B70  103C 0034               2062          MOVE.B #52, D0             ; open new file (52 is new)
+00001B74  4E4F                    2063          trap #15
+00001B76                          2064      endi
+00001B76                          2065      
+00001B76                          2066      ********************************************************************************************************* 
+00001B76                          2067      * Seek to END of FILE by counting the number of bytes, closing, reopening, then seeking.
+00001B76                          2068      *    (first, count number of bytes already in the file to obtain seek position)
+00001B76                          2069      *********************************************************************************************************
+00001B76  4283                    2070      Clr.L D3   ;TODO: reg save, D3 is now our count of bytes read
+00001B78  7401                    2071      MOVE.L #1, D2 ; read one byte at a time
+00001B7A  43F9 00001C40           2072      LEA byteRead, A1
+00001B80                          2073      
+00001B80                          2074  countLoop:
+00001B80  103C 0035               2075      MOVE.B #53, D0 ; try to read one byte (TODO: move out of loop)
+00001B84  4E4F                    2076      trap #15
+00001B86                          2077      
+00001B86  0C40 0001               2078      CMPI.W #1,D0  ;1 == EOF
+00001B8A  6700 0006               2079      BEQ countDone
+00001B8E  5243                    2080      ADDI #1, D3
+00001B90  60EE                    2081      BRA countLoop
+00001B92                          2082      
+00001B92                          2083  countDone:    
+00001B92                          2084      * close this file
+00001B92  303C 0038               2085       move #56,d0  
+00001B96  4E4F                    2086       trap #15 
+00001B98                          2087       
+00001B98                          2088       * reopen the target file
+00001B98  224B                    2089       MOVE.L A3,A1
+00001B9A  303C 0033               2090       MOVE #51, D0
+00001B9E  4E4F                    2091       trap #15
+00001BA0                          2092       
+00001BA0                          2093      * seek to right position, then continue with writing
+00001BA0  2403                    2094      MOVE.L D3, D2 ; move the number of bytes found in the file to D2
+00001BA2  303C 0037               2095      MOVE #55, D0  ; position file task
+00001BA6  4E4F                    2096      trap #15
+00001BA8                          2097  
+00001BA8                          2098      ******************************************************************************
+00001BA8                          2099      * Actually write the buffer to the file, after caculating the number of bytes 
+00001BA8                          2100      *  to write and after seeking to the right location in the file for append
+00001BA8                          2101      ******************************************************************************
+00001BA8                          2102  
+00001BA8  2405                    2103      MOVE.L D5, D2 ; restore this for the actually writing the buffer 
+00001BAA                          2104      ; assumes A0 hasnt changed since handed to this method      
+00001BAA  224A                    2105      MOVEA.L A2, A1 ; load the address of the buffer we want to write to disk
+00001BAC                          2106      ; assumes file ID is still stored in D1.L  
+00001BAC  103C 0036               2107      MOVE.B #54, D0 ; subtask 54 is write to open file (append, or?), assumes D2 holds # of bytes
+00001BB0  4E4F                    2108      trap #15
+00001BB2                          2109  
+00001BB2                          2110  * leave new line decision to caller
+00001BB2                          2111      ; add a newline to the file output
+00001BB2                          2112  *    LEA NEWLINE, A1
+00001BB2                          2113  *    MOVE.B #54, D0 
+00001BB2                          2114  *    MOVE.B #2,D2  ; kills # of bytes to write from input param
+00001BB2                          2115  *    trap #15
+00001BB2                          2116      
+00001BB2                          2117      ; finally, close only this file
+00001BB2  103C 0038               2118      MOVE.B #56, D0 ; close file task
+00001BB6  4E4F                    2119      trap #15
+00001BB8                          2120    
+00001BB8                          2121      ; report to screen
+00001BB8  224A                    2122      MOVEA.L A2, A1 ; load the address of the buffer we want to write to disk & screen
+00001BBA  103C 000E               2123      MOVE.B #14, D0  * changed from #13 to #14 to leave new line to caller
+00001BBE  4E4F                    2124      trap #15
+00001BC0                          2125        
+00001BC0                          2126      ; restore context
+00001BC0  4CDF 0C3F               2127      MOVEM.L (SP)+, toSave
+00001BC4                          2128      
+00001BC4  4E75                    2129      RTS
+00001BC6                          2130      
+00001BC6                          2131      
+00001BC6                          2132  *----------------------------------------------------------------------------------
+00001BC6                          2133  * Method Name: AsciiToHex
+00001BC6                          2134  * Written by : Berger, Modified by Nash
+00001BC6                          2135  * Date       : 3/1/2019
+00001BC6                          2136  * Description: Converts chars '0'-'9' and 'a'-'f' to 0-9,a-F
+00001BC6                          2137  *              Transforms/unpacks 8 chars (8b each) pointed to by A1 into 
+00001BC6                          2138  *              its (4b each) equivalent hex value 
+00001BC6                          2139  *  
+00001BC6                          2140  *  Preconditions & Input
+00001BC6                          2141  *       A1 (input) points to a memory buffer holding 8 ascii chars (not null-terminated) 
+00001BC6                          2142  *       This function calls another function (strip_ascii)
+00001BC6                          2143  *
+00001BC6                          2144  *  Postconditions & Output
+00001BC6                          2145  *       D7 (output) holds the converted value 
+00001BC6                          2146  *       Caller-Saved : D0 is temp, D6 is a loop var
+00001BC6                          2147  *----------------------------------------------------------------------------------
+00001BC6                          2148  AsciiToHexRegList REG D0,D6
+00001BC6                          2149  AsciiToHex     
+00001BC6  48E7 8000               2150      MOVEM.L asciiToHexRegList, -(SP)  *save context
+00001BCA  4287                    2151      CLR.L D7 * clear our return value
+00001BCC  7C08                    2152      MOVE.L #8, D6 ; and set up our loop counter
+00001BCE                          2153  
+00001BCE                          2154  chrLoop
+00001BCE  1019                    2155      MOVE.B (A1)+,D0 * Get the first byte
+00001BD0  4EB9 00001BE8           2156      jsr strip_ascii * Get rid of the ascii code    
+00001BD6  8E40                    2157      OR.W D0,D7 * Load the bits into D7
+00001BD8                          2158      
+00001BD8  5306                    2159      subI.B #1,D6  *decrement our loop variable
+00001BDA  6700 0006               2160      BEQ chrDone   *skip shifting if we are done
+00001BDE                          2161      
+00001BDE  E987                    2162      ASL.L #4,D7 * shift left 4 bits to prepare for next byte
+00001BE0  60EC                    2163      BRA chrLoop
+00001BE2                          2164  
+00001BE2                          2165  chrDone
+00001BE2  4CDF 0001               2166      MOVEM.L (SP)+,asciiToHexRegList 
+00001BE6  4E75                    2167      RTS
+00001BE8                          2168  
+00001BE8                          2169  
+00001BE8                          2170  **********************************************************************
+00001BE8                          2171  * SUBROUTINE: strip_ascii
+00001BE8                          2172  * remove the ascii code from the digits 0-9,a-f, or A-F
+00001BE8                          2173  * Input Parameters: <D0> = ascii code
+00001BE8                          2174  *
+00001BE8                          2175  * Return parameters: D0.B = number 0...F, returned as 00...0F
+00001BE8                          2176  * Registers used internally: D0
+00001BE8                          2177  * Assumptions: D0 contains $30-$39, $41-$46 or $61-66
+00001BE8                          2178  *
+00001BE8                          2179  ***********************************************************************
+00001BE8                          2180  strip_ascii
+00001BE8  B03C 0039               2181        CMP.B #$39,D0 * Is it in range of 0-9?
+00001BEC  6F00 001A               2182        BLE sub30 * Its a number
+00001BF0  B03C 0046               2183        CMP.B #$46,D0 * Is is A...F?
+00001BF4  6F00 000A               2184        BLE sub37 * Its A...F
+00001BF8  0400 0057               2185        SUB.B #$57,D0 * Its a...f
+00001BFC  6000 000E               2186        BRA ret_sa * Go back
+00001C00  0400 0037               2187  sub37 SUB.B #$37,D0 * Strip 37
+00001C04  6000 0006               2188        BRA ret_sa * Go back
+00001C08  0400 0030               2189  sub30 SUB.B #$30,D0 * Strip 30
+00001C0C  4E75                    2190  ret_sa RTS * Go back
+00001C0E                          2191  
+00001C0E                          2192      
+00001C0E                          2193  * Required variables and constants go here for your Disassembler
+00001C0E  =0000000D               2194  CR                  EQU $0D
+00001C0E  =0000000A               2195  LF                  EQU $0A
+00001C0E= 0D 0A 00                2196  NEWLINE             DC.B CR,LF,0  
+00001C11= 4D 4F 56 45 2E 4C ...   2197  MSG1                DC.B 'MOVE.L D4,D5',0
+00001C1E= 41 44 44 2E 42 20 ...   2198  MSG2                DC.B 'ADD.B D0,D1',0
+00001C2A= 43 6F 6E 66 69 67 ...   2199  inFilename  DC.B    'Config.cfg',0
+00001C35= 4F 75 74 70 75 74 ...   2200  outFilename         DC.B 'Output.txt',0
+00001C40                          2201  byteRead            DS.B 1
+00001C41= 31 41 30 30 31 41 ...   2202  ascii_val           DC.B $31,$41,$30,$30,$31,$41,$30,$30 * Test value $1A001A00
+00001C49  =00008000               2203  stackStart      EQU     $8000
+00001C49                          2204  addrBuff        DS.B        10
+00001C53                          2205  
+00001C53                          2206  
+00001C53= 47 72 6F 75 70 20 ...   2207  strGroup5           DC.B    'Group 5 :) ',0
+00001C5F= 47 72 6F 75 70 20 ...   2208  strGroup8           DC.B    'Group 8 :) ',0
+00001C6B= 47 72 6F 75 70 20 ...   2209  strGroup9           DC.B    'Group 9 :) ',0
+00001C77= 47 72 6F 75 70 20 ...   2210  strGroupB           DC.B    'Group B :) ',0
+00001C83= 47 72 6F 75 70 20 ...   2211  strGroupC           DC.B    'Group C :) ',0
+00001C8F= 47 72 6F 75 70 20 ...   2212  strGroupD           DC.B    'Group D :) ',0
+00001C9B= 47 72 6F 75 70 20 ...   2213  strGroupE           DC.B    'Group E :) ',0
+00001CA7                          2214  
+00001CA7                          2215  
+00001CA7                          2216  ; Anwar's commands
+00001CA7= 4D 4F 56 45 41 2E ...   2217  moveaWMsg   DC.B    'MOVEA.W',0
+00001CAF= 4D 4F 56 45 41 2E ...   2218  moveaLMsg   DC.B    'MOVEA.L',0
+00001CB7= 4D 4F 56 45 2E 42 00    2219  moveBMsg        DC.B        'MOVE.B',0
+00001CBE= 4D 4F 56 45 2E 57 00    2220  moveWMsg        DC.B        'MOVE.W',0
+00001CC5= 4D 4F 56 45 2E 4C 00    2221  moveLMsg        DC.B        'MOVE.L',0
+00001CCC= 4D 4F 56 45 4D 20 ...   2222  movemRegMsg DC.B        'MOVEM Reg',0
+00001CD6= 4D 4F 56 45 4D 20 ...   2223  movemMemMsg DC.B        'MOVEM Mem',0
+00001CE0= 53 55 42 51 2E 42 00    2224  subqBMsg        DC.B        'SUBQ.B',0
+00001CE7= 53 55 42 51 2E 57 00    2225  subqWMsg        DC.B        'SUBQ.W',0
+00001CEE= 53 55 42 51 2E 4C 00    2226  subqLMsg        DC.B        'SUBQ.L',0
+00001CF5= 53 55 42 2E 42 20 ...   2227  subBdnMsg   DC.B        'SUB.B Dn',0
+00001CFE= 53 55 42 2E 57 20 ...   2228  subWdnMsg   DC.B        'SUB.W Dn',0
+00001D07= 53 55 42 2E 4C 20 ...   2229  subLdnMsg   DC.B        'SUB.L Dn',0
+00001D10= 53 55 42 2E 42 20 ...   2230  subBeaMsg   DC.B        'SUB.B Ea',0
+00001D19= 53 55 42 2E 57 20 ...   2231  subWeaMsg   DC.B        'SUB.W Ea',0
+00001D22= 53 55 42 2E 4C 20 ...   2232  subLeaMsg   DC.B        'SUB.L Ea',0
+00001D2B= 41 44 44 41 2E 57 00    2233  addaWMsg        DC.B        'ADDA.W',0
+00001D32= 41 44 44 41 2E 4C 00    2234  addaLMsg        DC.B        'ADDA.L',0
+00001D39= 41 44 44 2E 42 20 ...   2235  addBdnMsg   DC.B        'ADD.B Dn',0
+00001D42= 41 44 44 2E 57 20 ...   2236  addWdnMsg   DC.B        'ADD.W Dn',0
+00001D4B= 41 44 44 2E 4C 20 ...   2237  addLdnMsg   DC.B        'ADD.L Dn',0
+00001D54= 41 44 44 2E 42 20 ...   2238  addBeaMsg   DC.B        'ADD.B Ea',0
+00001D5D= 41 44 44 2E 57 20 ...   2239  addWeaMsg   DC.B        'ADD.W Ea',0
+00001D66= 41 44 44 2E 4C 20 ...   2240  addLeaMsg   DC.B        'ADD.L Ea',0
+00001D6F= 43 4D 50 00             2241  cmpMsg      DC.B        'CMP',0
+00001D73= 43 4D 50 49 00          2242  cmpiMsg     DC.B        'CMPI',0
+00001D78                          2243  
+00001D78                          2244  ; RYAN'S commands
+00001D78= 52 54 53 00             2245  rtsMsg      DC.B        'RTS',0
+00001D7C= 4A 53 52 00             2246  jsrMsg      DC.B        'JSR',0
+00001D80= 42 52 41 00             2247  braMsg      DC.B        'BRA',0
+00001D84= 42 43 53 00             2248  bcsMsg      DC.B        'BCS',0
+00001D88= 42 47 45 00             2249  bgeMsg      DC.B        'BGE',0
+00001D8C= 42 4C 54 00             2250  bltMsg      DC.B        'BLT',0
+00001D90= 42 56 43 00             2251  bvcMsg      DC.B        'BVC',0
+00001D94= 42 43 4C 52 00          2252  bclrMsg     DC.B        'BCLR',0
+00001D99                          2253  
+00001D99                          2254  ; Donghee's commands
+00001D99= 4D 55 4C 53 00          2255  mulsMsg     DC.B        'MULS',0
+00001D9E= 44 49 56 53 00          2256  divsMsg     DC.B        'DIVS',0
+00001DA3= 4C 45 41 00             2257  leaMsg      DC.B    'LEA',0
+00001DA7= 4E 45 47 2E 42 00       2258  negBMsg     DC.B        'NEG.B',0
+00001DAD= 4E 45 47 2E 57 00       2259  negWMsg     DC.B        'NEG.W',0
+00001DB3= 4E 45 47 2E 4C 00       2260  negLMsg     DC.B        'NEG.L',0
+00001DB9= 4F 52 00                2261  orMsg       DC.B        'OR',0
+00001DBC= 4F 52 49 2E 42 00       2262  oriBMsg     DC.B    'ORI.B',0
+00001DC2= 4F 52 49 2E 57 00       2263  oriWMsg     DC.B    'ORI.W',0
+00001DC8= 4F 52 49 2E 4C 00       2264  oriLMsg     DC.B    'ORI.L',0
+00001DCE= 45 4F 52 00             2265  eorMsg      DC.B        'EOR',0
+00001DD2= 4C 53 4C 2E 42 00       2266  lslBMsg     DC.B    'LSL.B',0
+00001DD8= 4C 53 4C 2E 57 00       2267  lslWMsg     DC.B    'LSL.W',0
+00001DDE= 4C 53 4C 2E 4C 00       2268  lslLMsg     DC.B    'LSL.L',0
+00001DE4= 4C 53 52 2E 42 00       2269  lsrBMsg     DC.B        'LSR.B',0
+00001DEA= 4C 53 52 2E 57 00       2270  lsrWMsg     DC.B        'LSR.W',0
+00001DF0= 4C 53 52 2E 4C 00       2271  lsrLMsg     DC.B        'LSR.L',0
+00001DF6= 41 53 4C 00             2272  aslMsg      DC.B        'ASL',0
+00001DFA= 41 53 52 00             2273  asrMsg      DC.B        'ASR',0
+00001DFE= 52 4F 4C 2E 42 00       2274  rolBMsg     DC.B        'ROL.B',0
+00001E04= 52 4F 4C 2E 57 00       2275  rolWMsg     DC.B        'ROL.W',0
+00001E0A= 52 4F 4C 2E 4C 00       2276  rolLMsg     DC.B        'ROL.L',0
+00001E10= 52 4F 52 2E 42 00       2277  rorBMsg     DC.B        'ROR.B',0
+00001E16= 52 4F 52 2E 57 00       2278  rorWMsg     DC.B        'ROR.W',0
+00001E1C= 52 4F 52 2E 4C 00       2279  rorLMsg     DC.B        'ROR.L',0
+00001E22                          2280  
+00001E22= 44 41 54 41 20 4D ...   2281  dataMsg     DC.B        'DATA MESSAGE HERE',CR,LF,0
+00001E36                          2282  
+00001E36                          2283  *endOfMsg    DC.B    '',0
+00001E36                          2284  *
+00001E36                          2285  *addrRegMsg  DC.B    'A',0
+00001E36                          2286  *dataRegMsg  DC.B    'D',0
+00001E36                          2287  *addrValMsg  DC.B    '(A'
+00001E36                          2288  *addrRegIncMsg   DC.B    '(A'
+00001E36                          2289  *addrRegDecMsg   DC.B    '-(A'
+00001E36                          2290  *addrRegDplMsg   DC.B    ',A'
+00001E36                          2291  *addrRegInxMsg   
+00001E36                          2292  *prgmCtrDplMsg
+00001E36                          2293  *prgmCtrInxMsg
+00001E36                          2294  
+00001E36                          2295  
+00001E36                          2296  * FOR TESTING PURPOSES
+00002000                          2297      ORG     $2000
+00002000  CDC7                    2298      MULS D7,D6
+00002002  4EB9 0000200C           2299      JSR     foomethod
+00002008  6000 0002               2300      BRA     uselessBranch
+0000200C                          2301  uselessBranch
+0000200C                          2302      * MOVE.B  #$11, D7
+0000200C                          2303      * SUBQ    #1,D7
+0000200C                          2304      * ADD     #1,D7
+0000200C                          2305  foomethod:
+0000200C  4E75                    2306      RTS
+0000200E                          2307      
+0000200E                          2308     END    START        ; last line of source
+
+No errors detected
+No warnings generated
+
+
+SYMBOL TABLE INFORMATION
+Symbol-name         Value
+-------------------------
+ADDALCMD            1406
+ADDALMSG            1D32
+ADDAWCMD            13EE
+ADDAWMSG            1D2B
+ADDBDNCMD           141E
+ADDBDNMSG           1D39
+ADDBEACMD           1466
+ADDBEAMSG           1D54
+ADDLDNCMD           144E
+ADDLDNMSG           1D4B
+ADDLEACMD           1496
+ADDLEAMSG           1D66
+ADDRBUFF            1C49
+ADDRFROMFILE        104E
+ADDRFROMFILETOSAVE  207
+ADDWDNCMD           1436
+ADDWDNMSG           1D42
+ADDWEACMD           147E
+ADDWEAMSG           1D5D
+ASCIITOHEX          1BC6
+ASCIITOHEXREGLIST   1
+ASCII_VAL           1C41
+ASLCMD              19B2
+ASLMSG              1DF6
+ASRCMD              19D6
+ASRMSG              1DFA
+BCLRCMD             16EE
+BCLRMSG             1D94
+BCSCMD              168E
+BCSMSG              1D84
+BGECMD              16A6
+BGEMSG              1D88
+BLTCMD              16BE
+BLTMSG              1D8C
+BRACMD              1676
+BRAMSG              1D80
+BVCCMD              16D6
+BVCMSG              1D90
+BYTEREAD            1C40
+CHRDONE             1BE2
+CHRLOOP             1BCE
+CMPCMD              1586
+CMPICMD             13D6
+CMPIMSG             1D73
+CMPMSG              1D6F
+COUNTDONE           1B92
+COUNTLOOP           1B80
+CR                  D
+DATAMSG             1E22
+DETERMINEOP         106E
+DIVSCMD             1730
+DIVSMSG             1D9E
+DONEOP              10E6
+EORCMD              188C
+EORMSG              1DCE
+FINDNULLLOOPDONE    1B62
+FOOMETHOD           200C
+GROUP0              10EC
+GROUP1              112A
+GROUP2              113C
+GROUP3              115C
+GROUP4              117C
+GROUP5              11D8
+GROUP6              1206
+GROUP8              1238
+GROUP9              1258
+GROUPB              129E
+GROUPC              12CA
+GROUPD              12DC
+GROUPDATA           13C6
+GROUPE              133A
+INFILENAME          1C2A
+JSRCMD              165E
+JSRMSG              1D7C
+LEACMD              175A
+LEAMSG              1DA3
+LF                  A
+LOOP                1028
+LSLBCMD             18B6
+LSLBMSG             1DD2
+LSLLCMD             190A
+LSLLMSG             1DDE
+LSLWCMD             18E0
+LSLWMSG             1DD8
+LSRBCMD             1934
+LSRBMSG             1DE4
+LSRLCMD             1988
+LSRLMSG             1DF0
+LSRWCMD             195E
+LSRWMSG             1DEA
+MEMADDRLOOP         1B06
+MOVEALCMD           15E6
+MOVEALMSG           1CAF
+MOVEAWCMD           15CE
+MOVEAWMSG           1CA7
+MOVEBCMD            15FE
+MOVEBMSG            1CB7
+MOVELCMD            162E
+MOVELMSG            1CC5
+MOVEMMEMCMD         159E
+MOVEMMEMMSG         1CD6
+MOVEMREGCMD         15B6
+MOVEMREGMSG         1CCC
+MOVEWCMD            1616
+MOVEWMSG            1CBE
+MSG1                1C11
+MSG2                1C1E
+MULSCMD             1706
+MULSMSG             1D99
+NEGBCMD             1784
+NEGBMSG             1DA7
+NEGLCMD             17CC
+NEGLMSG             1DB3
+NEGWCMD             17A8
+NEGWMSG             1DAD
+NEWLINE             1C0E
+NULLLOOP            1B54
+ORCMD               17F0
+ORIBCMD             1820
+ORIBMSG             1DBC
+ORILCMD             1868
+ORILMSG             1DC8
+ORIWCMD             1844
+ORIWMSG             1DC2
+ORMSG               1DB9
+OUTFILENAME         1C35
+PRINTMEMADDR        1AF6
+PRINTMEMADDRTOSAVE  207
+RET_SA              1C0C
+ROLBCMD             19FA
+ROLBMSG             1DFE
+ROLLCMD             1A4E
+ROLLMSG             1E0A
+ROLWCMD             1A24
+ROLWMSG             1E04
+RORBCMD             1A78
+RORBMSG             1E10
+RORLCMD             1ACC
+RORLMSG             1E1C
+RORWCMD             1AA2
+RORWMSG             1E16
+RTSCMD              1646
+RTSMSG              1D78
+STACKSTART          8000
+START               1000
+STRGROUP5           1C53
+STRGROUP8           1C5F
+STRGROUP9           1C6B
+STRGROUPB           1C77
+STRGROUPC           1C83
+STRGROUPD           1C8F
+STRGROUPE           1C9B
+STRIP_ASCII         1BE8
+SUB30               1C08
+SUB37               1C00
+SUBBDNCMD           14F6
+SUBBDNMSG           1CF5
+SUBBEACMD           153E
+SUBBEAMSG           1D10
+SUBLDNCMD           1526
+SUBLDNMSG           1D07
+SUBLEACMD           156E
+SUBLEAMSG           1D22
+SUBQBCMD            14AE
+SUBQBMSG            1CE0
+SUBQLCMD            14DE
+SUBQLMSG            1CEE
+SUBQWCMD            14C6
+SUBQWMSG            1CE7
+SUBWDNCMD           150E
+SUBWDNMSG           1CFE
+SUBWEACMD           1556
+SUBWEAMSG           1D19
+TOSAVE              C3F
+TRAPTASK13          1B40
+USELESSBRANCH       200C
+_00000000           1B76
